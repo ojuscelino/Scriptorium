@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Scriptorium: manuscrito, fichas, mapas e linha do tempo para sagas, num só lugar e em arquivos seus.">
+<title>Scriptorium</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Hanken+Grotesk:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<style>
+/* Layout: página longa de uma coluna larga; a mesa de trabalho (manuscrito + ficha) é o herói, os recursos viram abas com demonstrações vivas. */
+:root{
+  --bg:#F3F2EE; --bg2:#EBE9E2; --raise:#FFFFFF; --line:#DAD6CB; --fg:#1C1F27; --fg2:#464A55; --muted:#6C707B;
+  --gilt:#8A6626; --gilt-soft:#EDE4CF; --wine:#7A2C39; --wine-soft:#F2E1E3; --sea:#2E5E8C; --leaf:#3F7A4A;
+  --night:#12151C; --night-fg:#ECE7DC;
+  --f-display:"Gloock","Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --f-text:"Literata","Iowan Old Style",Georgia,serif;
+  --f-ui:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --shadow:0 24px 50px -30px rgba(20,16,10,.5);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1219; --bg2:#141924; --raise:#1B2130; --line:#2A3142; --fg:#ECE7DC; --fg2:#C2BDB2; --muted:#8F95A2;
+  --gilt:#CDA75E; --gilt-soft:#2F2A1F; --wine:#D98791; --wine-soft:#33222A; --sea:#7FB0DE; --leaf:#7DC08A;
+  --night:#0A0D13; --night-fg:#ECE7DC; --shadow:0 24px 50px -28px rgba(0,0,0,.8); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1219; --bg2:#141924; --raise:#1B2130; --line:#2A3142; --fg:#ECE7DC; --fg2:#C2BDB2; --muted:#8F95A2;
+  --gilt:#CDA75E; --gilt-soft:#2F2A1F; --wine:#D98791; --wine-soft:#33222A; --sea:#7FB0DE; --leaf:#7DC08A;
+  --night:#0A0D13; --night-fg:#ECE7DC; --shadow:0 24px 50px -28px rgba(0,0,0,.8); color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--f-ui);margin:0;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--gilt);outline-offset:3px;border-radius:4px}
+.wrap{max-width:1160px;margin:0 auto;padding-inline:20px}
+.eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;color:var(--gilt);display:flex;align-items:center;gap:10px}
+.eyebrow:before{content:"";width:26px;height:1px;background:currentColor}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:clamp(30px,4.2vw,50px);line-height:1.06}
+h3{font-size:22px;line-height:1.2}
+p{margin:0}
+.lead{font-family:var(--f-text);font-size:clamp(17px,1.6vw,19.5px);line-height:1.6;color:var(--fg2);max-width:52ch}
+.btn{display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 22px;border-radius:12px;border:1px solid var(--line);background:var(--raise);font-weight:600;text-decoration:none;transition:transform .15s,border-color .15s,background .15s}
+.btn:hover{transform:translateY(-2px);border-color:var(--gilt)}
+.btn.pri{background:var(--fg);color:var(--bg);border-color:transparent}
+.btn.pri:hover{background:var(--wine);color:#fff}
+.btn svg{width:18px;height:18px}
+
+/* topo */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backdrop-filter:blur(12px);background:color-mix(in srgb,var(--bg) 82%,transparent);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:20px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-size:22px;text-decoration:none}
+.brand i{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--gilt);display:grid;place-items:center;font-style:normal;font-size:16px;color:var(--gilt)}
+.top nav{display:flex;gap:22px;margin-left:auto;font-size:14.5px;color:var(--fg2)}
+.top nav a{text-decoration:none;padding:6px 0}
+.top nav a:hover{color:var(--fg)}
+.top .btn{height:40px;padding:0 16px;font-size:14px}
+@media(max-width:760px){.top nav{display:none}.top .btn{margin-left:auto}}
+
+/* herói */
+.hero{padding-block:clamp(40px,7vw,96px) clamp(48px,7vw,88px)}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:clamp(28px,5vw,64px);align-items:center}
+.hero h1{font-size:clamp(44px,6.6vw,84px);line-height:.98;margin:18px 0 22px}
+.hero h1 em{font-style:italic;color:var(--wine)}
+.hero .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+.hero .fine{margin-top:18px;font-size:13.5px;color:var(--muted);display:flex;gap:6px 18px;flex-wrap:wrap}
+.hero .fine span:before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--leaf);margin-right:8px;vertical-align:middle}
+@media(max-width:900px){.hero .wrap{grid-template-columns:minmax(0,1fr)}}
+
+/* mesa de trabalho */
+.desk{position:relative;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);background:var(--raise);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;min-height:400px}
+.desk .bar{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--bg2);font-size:12px;color:var(--muted)}
+.desk .bar b{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.desk .bar span{margin-left:8px}
+.page{padding:28px clamp(18px,3vw,36px);font-family:var(--f-text);font-size:16.5px;line-height:1.75;border-right:1px solid var(--line)}
+.page .k{font-family:var(--f-ui);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gilt);font-weight:600}
+.page h3{font-size:26px;margin:4px 0 14px}
+.page p+p{margin-top:12px}
+.ref{background:none;border:0;padding:0;font:inherit;color:inherit;border-bottom:2px solid color-mix(in srgb,var(--gilt) 55%,transparent);cursor:pointer;transition:background .15s}
+.ref:hover,.ref[aria-pressed="true"]{background:var(--gilt-soft)}
+.ref.w{border-bottom-color:color-mix(in srgb,var(--wine) 55%,transparent)}
+.ref.w:hover,.ref.w[aria-pressed="true"]{background:var(--wine-soft)}
+.ficha{padding:26px 22px;display:flex;flex-direction:column;gap:14px;background:var(--bg2);min-width:0}
+.ficha .tag{align-self:flex-start;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;padding:4px 9px;border-radius:999px;background:var(--gilt-soft);color:var(--gilt)}
+.ficha h4{font-family:var(--f-display);font-weight:400;font-size:26px;margin:0;line-height:1.1}
+.ficha dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px}
+.ficha dt{color:var(--muted)}.ficha dd{margin:0}
+.ficha .chips{display:flex;flex-wrap:wrap;gap:6px}
+.ficha .chips span{font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--raise)}
+.ficha .hint{margin-top:auto;font-size:12.5px;color:var(--muted)}
+@media(max-width:620px){.desk{grid-template-columns:minmax(0,1fr)}.page{border-right:0;border-bottom:1px solid var(--line)}}
+
+/* seções */
+section{padding-block:clamp(56px,8vw,104px);scroll-margin-top:72px}
+.head{display:flex;flex-direction:column;gap:16px;margin-bottom:40px;max-width:760px}
+.alt{background:var(--bg2);border-block:1px solid var(--line)}
+
+/* abas de recursos */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:22px}
+.tab{height:42px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--raise);font-size:14.5px;font-weight:500;display:inline-flex;align-items:center;gap:8px}
+.tab:hover{border-color:var(--gilt)}
+.tab[aria-selected="true"]{background:var(--fg);color:var(--bg);border-color:transparent}
+.panel{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(24px,4vw,56px);align-items:center}
+.panel[hidden]{display:none}
+@media(min-width:861px){.panel{min-height:440px}}
+.panel .txt{display:flex;flex-direction:column;gap:14px}
+.panel .txt p{color:var(--fg2);font-size:16.5px}
+.panel ul{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;font-size:15px;color:var(--fg2)}
+.panel li{display:flex;gap:10px}
+.panel li:before{content:"";flex:none;width:7px;height:7px;margin-top:9px;border-radius:50%;background:var(--gilt)}
+.stage{background:var(--raise);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow);min-width:0}
+@media(max-width:860px){.panel{grid-template-columns:minmax(0,1fr)}}
+.lab{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* demo: escrever */
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld span{font-size:11.5px;color:var(--muted)}
+.fld div{height:38px;border:1px solid var(--line);border-radius:9px;background:var(--bg);display:flex;align-items:center;padding:0 12px;font-size:14px}
+.mock-text{font-family:var(--f-text);font-size:15px;line-height:1.7;color:var(--fg2);margin-top:6px}
+.mock-text mark{background:var(--gilt-soft);color:var(--fg);padding:0 2px;border-radius:3px}
+.status{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.pill{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--bg)}
+
+/* demo: mundo */
+.tree{display:flex;flex-direction:column;gap:2px;font-size:14.5px}
+.tree div{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px}
+.tree div:hover{background:var(--bg2)}
+.tree .d1{margin-left:22px}.tree .d2{margin-left:44px}.tree .d3{margin-left:66px}
+.tree em{font-style:normal;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;padding:2px 7px;border-radius:5px;background:var(--gilt-soft);color:var(--gilt)}
+.tree em.c{background:var(--wine-soft);color:var(--wine)}
+.kinds{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.kinds span{font-size:12px;padding:3px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+
+/* demo: tempo */
+.axis{position:relative;height:96px;margin:20px 6px 6px}
+.axis:before{content:"";position:absolute;left:0;right:0;top:50px;height:2px;background:var(--line)}
+.ev{position:absolute;top:44px;height:14px;border-radius:7px;background:var(--wine);opacity:.35;transition:opacity .2s}
+.ev.on{opacity:1}
+.ev.dot{width:14px;margin-left:-7px}
+.ev span{display:none}
+.cursor{position:absolute;top:30px;bottom:0;width:2px;background:var(--gilt);pointer-events:none}
+.cursor:after{content:"";position:absolute;top:-4px;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--gilt)}
+input[type=range]{width:100%;accent-color:var(--gilt);margin:6px 0}
+.readout{display:flex;flex-direction:column;gap:6px;font-size:14.5px;min-height:76px}
+.readout b{font-family:var(--f-display);font-weight:400;font-size:21px}
+.ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin:0 6px}
+
+/* demo: mapa */
+.map{width:100%;height:auto;display:block;border-radius:10px;background:var(--bg2)}
+.map .land{fill:var(--bg);stroke:var(--line);stroke-width:1.5}
+.map .sea{fill:var(--bg2)}
+.map .road{fill:none;stroke:var(--gilt);stroke-width:2.5;stroke-dasharray:2 7;stroke-linecap:round}
+.map text{font:600 11px var(--f-ui);fill:var(--fg)}
+.map .pin{fill:var(--wine)}
+.modes{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 10px}
+.modes button{height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--bg);font-size:13.5px}
+.modes button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:transparent}
+.verdict{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:10px;font-size:14px;border:1px solid var(--line);background:var(--bg)}
+.verdict.bad{border-color:var(--wine);background:var(--wine-soft)}
+.verdict.ok{border-color:var(--leaf)}
+
+/* demo: revisar */
+.issues{display:flex;flex-direction:column;gap:10px}
+.issue{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:14px}
+.issue i{width:9px;height:9px;border-radius:50%;background:var(--gilt);margin-top:7px}
+.issue small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.issue .q{font-family:var(--f-text);font-style:italic}
+
+/* demo: traduzir */
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.col{padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-family:var(--f-text);font-size:14.5px;line-height:1.65;min-width:0}
+.col .lab{display:block;margin-bottom:6px;font-family:var(--f-ui)}
+.col.on{border-color:var(--gilt);background:var(--gilt-soft)}
+@media(max-width:560px){.cols2{grid-template-columns:minmax(0,1fr)}}
+
+/* sagas */
+.scale{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:8px}
+.scale div{background:var(--raise);padding:24px 22px;display:flex;flex-direction:column;gap:4px}
+.scale b{font-family:var(--f-display);font-weight:400;font-size:clamp(34px,4vw,50px);line-height:1;font-variant-numeric:tabular-nums;color:var(--wine)}
+.scale span{font-size:14px;color:var(--muted)}
+.cols3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:28px;margin-top:40px}
+.cols3 h3{margin-bottom:8px}
+.cols3 p{color:var(--fg2);font-size:15.5px}
+
+/* pasta */
+.files{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,5vw,64px);align-items:center}
+.code{white-space:pre;font:13.5px/1.75 ui-monospace,"Cascadia Code",Consolas,monospace;background:var(--night);color:var(--night-fg);border-radius:16px;padding:22px 24px;overflow-x:auto;box-shadow:var(--shadow)}
+.code .d{color:#CDA75E}.code .m{color:#8F95A2}.code .h{color:#D98791}
+.checks{display:flex;flex-direction:column;gap:12px;margin-top:22px;padding:0;list-style:none}
+.checks li{display:flex;gap:12px;color:var(--fg2)}
+.checks li:before{content:"";flex:none;width:18px;height:18px;margin-top:3px;border-radius:50%;background:var(--leaf) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M5 9.5l2.6 2.6L13 6.5' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/18px no-repeat}
+@media(max-width:860px){.files{grid-template-columns:minmax(0,1fr)}}
+
+/* começar */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;counter-reset:s;margin-top:8px}
+.step{position:relative;padding:26px 24px 24px;border:1px solid var(--line);border-radius:16px;background:var(--raise);counter-increment:s}
+.step:before{content:counter(s);font-family:var(--f-display);font-size:44px;line-height:1;color:var(--gilt);display:block;margin-bottom:14px}
+.step p{color:var(--fg2);font-size:15px;margin-top:8px}
+.final{text-align:center;padding-block:clamp(64px,9vw,120px);background:var(--night);color:var(--night-fg)}
+.final h2{font-size:clamp(34px,5.4vw,66px);max-width:16ch;margin:0 auto 18px}
+.final h2 em{font-style:italic;color:#D98791}
+.final p{font-family:var(--f-text);color:#C2BDB2;max-width:46ch;margin:0 auto 30px;font-size:18px}
+.final .btn{background:var(--night-fg);color:#12151C;border-color:transparent}
+.final .btn:hover{background:#CDA75E}
+footer{padding-block:34px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+footer .wrap{display:flex;flex-wrap:wrap;gap:10px 24px;justify-content:space-between}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><i>S</i>Scriptorium</a>
+    <nav aria-label="Seções">
+      <a href="#recursos">Recursos</a><a href="#sagas">Para sagas</a><a href="#pasta">Seus arquivos</a><a href="#comecar">Como começar</a>
+    </nav>
+    <a class="btn pri" href="https://ojuscelino.github.io/Scriptorium/" target="_blank" rel="noopener">Abrir o Scriptorium</a>
+  </div>
+</header>
+
+<main>
+<div class="hero">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">Escrita, mundo e cronologia</div>
+      <h1>Uma saga inteira cabe <em>numa pasta.</em></h1>
+      <p class="lead">O Scriptorium reúne manuscrito, fichas, mapas e linha do tempo num só lugar. Você escreve. Ele lembra quem é quem, onde cada um estava e quantos dias levou para chegar lá.</p>
+      <div class="cta">
+        <a class="btn pri" href="https://ojuscelino.github.io/Scriptorium/" target="_blank" rel="noopener">Abrir o Scriptorium
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9h11M10 4.5L14.5 9 10 13.5"/></svg></a>
+        <a class="btn" href="#recursos">Ver os recursos</a>
+      </div>
+      <div class="fine"><span>Funciona sem internet</span><span>Arquivos na sua pasta</span><span>Sem cadastro</span></div>
+    </div>
+
+    <div class="desk" id="desk">
+      <div class="bar"><b></b><b></b><b></b><span>Capítulo 1 · A queda da Torre Branca</span></div>
+      <div class="page">
+        <div class="k">Capítulo 1</div>
+        <h3>A queda da Torre Branca</h3>
+        <p>Ao amanhecer, <button class="ref" data-f="iara" aria-pressed="true">Iara</button> subiu a escada em espiral até o sino. Lá embaixo, a <button class="ref w" data-f="vireu" aria-pressed="false">Casa Vireu</button> fechava os portões de <button class="ref" data-f="alta" aria-pressed="false">Altaneira</button>.</p>
+        <p>Nenhum dos guardas ergueu os olhos quando a torre começou a gemer.</p>
+      </div>
+      <aside class="ficha" aria-live="polite" id="ficha"></aside>
+    </div>
+  </div>
+</div>
+
+<section id="recursos" class="alt">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Recursos</div>
+      <h2>Cada parte da obra conversa com as outras</h2>
+      <p class="lead">Mude uma data no capítulo e a linha do tempo se reorganiza. Cite um personagem no texto e a ficha dele aparece. Experimente as abas abaixo.</p>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Recursos do Scriptorium">
+      <button class="tab" role="tab" id="t-escrever" aria-controls="p-escrever" aria-selected="true">Escrever</button>
+      <button class="tab" role="tab" id="t-mundo" aria-controls="p-mundo" aria-selected="false">Mundo e fichas</button>
+      <button class="tab" role="tab" id="t-tempo" aria-controls="p-tempo" aria-selected="false">Linha do tempo</button>
+      <button class="tab" role="tab" id="t-mapas" aria-controls="p-mapas" aria-selected="false">Mapas e viagens</button>
+      <button class="tab" role="tab" id="t-revisar" aria-controls="p-revisar" aria-selected="false">Revisar</button>
+      <button class="tab" role="tab" id="t-traduzir" aria-controls="p-traduzir" aria-selected="false">Traduzir</button>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-escrever" aria-labelledby="t-escrever">
+      <div class="txt">
+        <h3>Um editor feito para livros longos</h3>
+        <p>Capítulos e cenas numa árvore que você arrasta e reorganiza. Cada cena tem uma ficha com POV, local, data na história, objetivo, conflito e resultado.</p>
+        <ul><li>Quadro de cenas, modo foco, máquina de escrever e sprints com meta diária</li><li>Visualização de página em A4, A5 e C5</li><li>Histórico de versões com comparação lado a lado</li><li>Corretor ortográfico em português e inglês</li></ul>
+      </div>
+      <div class="stage">
+        <div class="lab">Ficha da cena</div>
+        <div class="fields">
+          <div class="fld"><span>POV</span><div>Iara Vireu</div></div>
+          <div class="fld"><span>Local</span><div>Altaneira</div></div>
+          <div class="fld"><span>Ano</span><div>41</div></div>
+          <div class="fld"><span>Dia do ano · até o dia</span><div>132 · 134</div></div>
+        </div>
+        <div class="mock-text">“<mark>Objetivo:</mark> avisar a Casa antes que o sino toque. <mark>Conflito:</mark> a escada está bloqueada. <mark>Resultado:</mark> a torre cai sem aviso.”</div>
+        <div class="status"><span class="pill">Rascunho</span><span class="pill">1 842 palavras</span><span class="pill">Meta de hoje: 1 000</span></div>
+      </div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-mundo" aria-labelledby="t-mundo" hidden>
+      <div class="txt">
+        <h3>Worldbuilding em camadas</h3>
+        <p>Reinos, casas, religiões, línguas, eras e lugares ficam numa hierarquia de verdade: a seita dentro da religião, a cidade dentro do reino. Cada ficha pode ter conexões, relações e um cânone que trava o que não deve mudar.</p>
+        <ul><li>19 tipos de ficha, com campos próprios para cada um</li><li>Importe o mundo inteiro de um único arquivo Markdown</li><li>Gráfico de relações entre personagens, casas e reinos</li></ul>
+      </div>
+      <div class="stage">
+        <div class="lab">Hierarquia</div>
+        <div class="tree" style="margin-top:10px">
+          <div><em>Reino</em>Altaneira</div>
+          <div class="d1"><em class="c">Casa</em>Casa Vireu</div>
+          <div class="d2"><em>Fortaleza</em>Torre Branca</div>
+          <div class="d2"><em class="c">Personagem</em>Iara Vireu</div>
+          <div class="d1"><em>Religião</em>Culto dos Sinos</div>
+          <div class="d2"><em>Seita</em>Os Vigias da Alvorada</div>
+          <div class="d1"><em>Língua</em>Altaneiro antigo</div>
+        </div>
+        <div class="kinds"><span>Reino</span><span>Casa</span><span>Religião</span><span>Seita</span><span>Língua</span><span>Era</span><span>Magia</span><span>Economia</span><span>Exército</span><span>Cultura</span><span>Lugar</span><span>Objeto</span><span>+ 7</span></div>
+      </div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-tempo" aria-labelledby="t-tempo" hidden>
+      <div class="txt">
+        <h3>A cronologia monta a si mesma</h3>
+        <p>Dê a cada capítulo um ano e um dia, ou um mês e um dia, e a linha do tempo fica pronta. Prefere contar por dia do ano, de 1 a 365? O calendário aceita. Capítulos que duram vários dias viram faixas.</p>
+        <ul><li>Importe as datas de todos os capítulos de uma planilha</li><li>Edite pela tabela da linha do tempo ou pela ficha da cena: uma atualiza a outra</li><li>Calculadora de intervalos, idades e quem estava vivo</li></ul>
+      </div>
+      <div class="stage">
+        <div class="lab" id="tl-lab">Ano 41 · arraste o dia</div>
+        <div class="axis" id="axis" aria-hidden="true"></div>
+        <div class="ticks" aria-hidden="true"><span>dia 1</span><span>dia 90</span><span>dia 180</span><span>dia 270</span><span>dia 365</span></div>
+        <input type="range" id="day" min="1" max="365" value="132" aria-label="Dia do ano">
+        <div class="readout" id="readout"></div>
+      </div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-mapas" aria-labelledby="t-mapas" hidden>
+      <div class="txt">
+        <h3>Distâncias que o enredo precisa respeitar</h3>
+        <p>Marque lugares no mapa, defina a escala e escolha como cada personagem viaja. O Scriptorium compara a distância com o tempo entre duas cenas e avisa quando alguém chegou rápido demais.</p>
+        <ul><li>Meios de viagem com velocidade por dia (a pé, a cavalo, de navio…)</li><li>Pins ligados às fichas de lugar</li><li>Aviso de viagem impossível entre cenas do mesmo POV</li></ul>
+      </div>
+      <div class="stage">
+        <svg class="map" viewBox="0 0 420 250" role="img" aria-label="Mapa com três lugares ligados por uma estrada">
+          <rect class="sea" width="420" height="250"/>
+          <path class="land" d="M20 60 C60 20 150 10 220 30 C300 50 380 30 405 90 C420 150 380 215 300 232 C210 250 120 238 60 200 C15 170 5 100 20 60Z"/>
+          <path class="road" d="M95 170 C150 150 190 120 225 108 C275 92 310 80 345 62"/>
+          <circle class="pin" cx="95" cy="170" r="6"/><text x="106" y="190">Altaneira</text>
+          <circle class="pin" cx="225" cy="108" r="6"/><text x="200" y="130">Vau do Corvo</text>
+          <circle class="pin" cx="345" cy="62" r="6"/><text x="296" y="50">Passo Cinzento</text>
+        </svg>
+        <div class="lab" style="margin-top:12px">Altaneira → Passo Cinzento · 180 km · duas cenas separadas por 2 dias</div>
+        <div class="modes" id="modes">
+          <button aria-pressed="true" data-v="30">A pé · 30 km/dia</button><button aria-pressed="false" data-v="60">A cavalo · 60 km/dia</button><button aria-pressed="false" data-v="90">Galope · 90 km/dia</button>
+        </div>
+        <div class="verdict" id="verdict"></div>
+      </div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-revisar" aria-labelledby="t-revisar" hidden>
+      <div class="txt">
+        <h3>Uma segunda leitura que não cansa</h3>
+        <p>O verificador de consistência roda no seu computador, sem IA, e aponta o que costuma escapar em livros longos. Quando quiser, o assistente com IA sugere fichas e conexões a partir do texto, e você decide o que entra.</p>
+        <ul><li>Nomes escritos de dois jeitos, números que não batem, parentescos contraditórios</li><li>Repetições destacadas no próprio texto</li><li>Análise de estilo e metas de escrita</li></ul>
+      </div>
+      <div class="stage">
+        <div class="lab">Consistência · 3 pontos para conferir</div>
+        <div class="issues" style="margin-top:10px">
+          <div class="issue"><i></i><div>Nome com duas grafias<small>Cap. 3 <span class="q">“Vireu”</span> · Cap. 17 <span class="q">“Vireo”</span></small></div></div>
+          <div class="issue"><i></i><div>Número que não bate<small>Cap. 5 diz <span class="q">“sete irmãos”</span> · Cap. 22 lista seis</small></div></div>
+          <div class="issue"><i></i><div>Parentesco contraditório<small>Ficha: Iara é filha de Tavo · Cap. 9: <span class="q">“a irmã de Tavo”</span></small></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-traduzir" aria-labelledby="t-traduzir" hidden>
+      <div class="txt">
+        <h3>Original e tradução lado a lado</h3>
+        <p>Traduza o livro parágrafo por parágrafo, com o original sempre à vista. O texto original fica em uma pasta e cada idioma ganha a sua, então nada se mistura.</p>
+        <ul><li>Um projeto de tradução por idioma</li><li>Mesma estrutura de capítulos nos dois lados</li><li>IA opcional para sugerir a tradução, com a chave que você configurar</li></ul>
+      </div>
+      <div class="stage">
+        <div class="cols2">
+          <div class="col"><span class="lab">Original · PT</span>Nenhum dos guardas ergueu os olhos quando a torre começou a gemer.</div>
+          <div class="col on"><span class="lab">Tradução · EN</span>None of the guards looked up when the tower began to groan.</div>
+        </div>
+        <div class="status"><span class="pill">Capítulo 1 · parágrafo 2 de 14</span><span class="pill">Texto espelhado</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="sagas">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Para sagas</div>
+      <h2>Pensado para obras que não cabem na cabeça</h2>
+      <p class="lead">Foi testado com uma saga de cinco livros: centenas de capítulos, mais de dois mil personagens e centenas de casas e lugares, todos com data, local e POV.</p>
+    </div>
+    <div class="scale">
+      <div><b>355</b><span>capítulos com ano, dia e local</span></div>
+      <div><b>2 124</b><span>personagens com ficha</span></div>
+      <div><b>281</b><span>casas e famílias</span></div>
+      <div><b>5</b><span>livros numa só coleção</span></div>
+    </div>
+    <div class="cols3">
+      <div><h3>Coleções</h3><p>Agrupe vários livros numa coleção. O mundo, o calendário e as fichas são compartilhados, e a linha do tempo mostra as outras obras da saga.</p></div>
+      <div><h3>Importe o que você já tem</h3><p>Manuscritos em DOCX, EPUB, TXT ou Markdown. Fichas de uma planilha. Mundo inteiro de um arquivo. Datas de capítulos de uma tabela.</p></div>
+      <div><h3>Exporte quando quiser</h3><p>Seus capítulos saem em formatos abertos e o mundo vira um documento. Nada fica preso.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="pasta" class="alt">
+  <div class="wrap files">
+    <div>
+      <div class="eyebrow">Seus arquivos</div>
+      <h2 style="margin:16px 0 18px">Tudo em texto simples, na sua pasta</h2>
+      <p class="lead">Cada capítulo é um arquivo Markdown. Cada ficha também. Se o Scriptorium sumisse amanhã, seu livro continuaria aberto em qualquer editor.</p>
+      <ul class="checks">
+        <li>Funciona sem internet, direto no navegador</li>
+        <li>Pasta dentro do Google Drive, OneDrive ou Dropbox ganha cópia na nuvem sozinha</li>
+        <li>Também abre a biblioteca do Google Drive de qualquer computador</li>
+        <li>Seu texto só sai do computador se você usar a IA ou o Google Drive</li>
+      </ul>
+    </div>
+    <div class="code" aria-label="Estrutura de pastas de uma biblioteca"><span class="d">Scriptorium/</span>
+├─ <span class="d">A Saga do Rei/</span>
+│  ├─ obra.json
+│  ├─ <span class="d">manuscrito/</span>
+│  │  ├─ <span class="h">0001 A QUEDA DA TORRE.md</span>
+│  │  └─ 0002 O PRIMEIRO SINO.md
+│  ├─ <span class="d">fichas/</span>
+│  │  ├─ <span class="d">Personagem/</span>Iara Vireu.md
+│  │  ├─ <span class="d">Casa/</span>Casa Vireu.md
+│  │  └─ <span class="d">Lugar/</span>Altaneira.md
+│  └─ mundo.md
+└─ <span class="m">backups/</span></div>
+  </div>
+</section>
+
+<section id="comecar">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Como começar</div>
+      <h2>Em poucos minutos você está dentro</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Escolha uma pasta</h3><p>No navegador, aponte para uma pasta do computador (ou use o Google Drive). É ali que a biblioteca vai morar.</p></div>
+      <div class="step"><h3>Traga o que já existe</h3><p>Importe o manuscrito, as fichas, o mundo em Markdown e a planilha de datas. Ou comece do zero com um projeto vazio.</p></div>
+      <div class="step"><h3>Escreva</h3><p>Abra o primeiro capítulo. As fichas, o mapa e a cronologia acompanham o texto conforme a história cresce.</p></div>
+    </div>
+  </div>
+</section>
+
+<div class="final">
+  <div class="wrap">
+    <h2>Escreva a saga. <em>Guarde o mundo.</em></h2>
+    <p>Abra o Scriptorium no navegador e comece pelo capítulo que está na sua cabeça.</p>
+    <a class="btn" href="https://ojuscelino.github.io/Scriptorium/" target="_blank" rel="noopener">Abrir o Scriptorium</a>
+  </div>
+</div>
+</main>
+
+<footer><div class="wrap"><span>Scriptorium · escrita, mundo e cronologia</span><span>Feito para quem escreve histórias longas</span></div></footer>
+
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)},$$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+
+  /* mesa de trabalho: toque num nome do texto e a ficha aparece */
+  var F={
+    iara:{tag:"Personagem · POV",t:"Iara Vireu",d:[["Papel","Arqueira da guarda"],["Casa","Casa Vireu"],["Aparece","34 capítulos"]],c:["Altaneira","Torre Branca","Tavo Vireu"]},
+    vireu:{tag:"Casa",t:"Casa Vireu",d:[["Dentro de","Reino de Altaneira"],["Sede","Torre Branca"],["Membros","12 fichas"]],c:["Iara Vireu","Tavo Vireu","Culto dos Sinos"]},
+    alta:{tag:"Lugar · Reino",t:"Altaneira",d:[["Capital","Pedra Alta"],["No mapa","3 pins"],["Cenas","18 capítulos"]],c:["Casa Vireu","Torre Branca","Vau do Corvo"]}
+  };
+  var fb=$("#ficha");
+  function show(k){var f=F[k];fb.innerHTML="";var tag=document.createElement("span");tag.className="tag";tag.textContent=f.tag;var h=document.createElement("h4");h.textContent=f.t;var dl=document.createElement("dl");f.d.forEach(function(r){var a=document.createElement("dt");a.textContent=r[0];var b=document.createElement("dd");b.textContent=r[1];dl.append(a,b)});var ch=document.createElement("div");ch.className="chips";f.c.forEach(function(x){var s=document.createElement("span");s.textContent=x;ch.append(s)});var hint=document.createElement("div");hint.className="hint";hint.textContent="A ficha aparece sozinha quando o nome está no texto.";fb.append(tag,h,dl,ch,hint);
+    $$(".ref").forEach(function(b){b.setAttribute("aria-pressed",b.dataset.f===k?"true":"false")})}
+  $$(".ref").forEach(function(b){["mouseenter","focus","click"].forEach(function(ev){b.addEventListener(ev,function(){show(b.dataset.f)})})});
+  show("iara");
+
+  /* abas */
+  var tabs=$$(".tab");
+  function pick(t){tabs.forEach(function(x){var on=x===t;x.setAttribute("aria-selected",on?"true":"false");x.tabIndex=on?0:-1;$("#"+x.getAttribute("aria-controls")).hidden=!on})}
+  tabs.forEach(function(t,i){t.addEventListener("click",function(){pick(t)});t.addEventListener("keydown",function(e){var n=e.key==="ArrowRight"?i+1:e.key==="ArrowLeft"?i-1:null;if(n!=null){e.preventDefault();var x=tabs[(n+tabs.length)%tabs.length];x.focus();pick(x)}})});
+  pick(tabs[0]);
+
+  /* linha do tempo */
+  var E=[{a:12,b:12,t:"O sino da Torre",p:"Altaneira"},{a:58,b:61,t:"A travessia do Vau",p:"Vau do Corvo"},{a:132,b:132,t:"A queda da Torre Branca",p:"Altaneira"},{a:134,b:134,t:"Conselho da Casa Vireu",p:"Altaneira"},{a:201,b:209,t:"A marcha ao Passo Cinzento",p:"Passo Cinzento"},{a:288,b:288,t:"O inverno chega cedo",p:"Altaneira"}];
+  var axis=$("#axis"),day=$("#day"),ro=$("#readout"),pct=function(d){return ((d-1)/364*100)+"%"};
+  E.forEach(function(e){var d=document.createElement("div");var span=e.b>e.a;d.className="ev"+(span?"":" dot");d.style.left=pct(e.a);if(span)d.style.width="calc("+pct(e.b)+" - "+pct(e.a)+")";var l=document.createElement("span");l.textContent=e.t.split(" ").slice(0,2).join(" ");d.append(l);e.el=d;axis.append(d)});
+  var cur=document.createElement("div");cur.className="cursor";axis.append(cur);
+  function tl(){var v=+day.value;cur.style.left=pct(v);var inside=null,last=null,next=null;E.forEach(function(e){if(v>=e.a&&v<=e.b)inside=e;if(e.b<v)last=e;if(e.a>v&&!next)next=e;e.el.classList.toggle("on",e.b<=v||(v>=e.a&&v<=e.b))});
+    $("#tl-lab").textContent="Ano 41 · dia "+v;ro.innerHTML="";var b=document.createElement("b");var p=document.createElement("div");
+    if(inside){b.textContent=inside.t;p.textContent="Acontece agora, em "+inside.p+(inside.b>inside.a?" (dias "+inside.a+" a "+inside.b+")":" (dia "+inside.a+")")+".";}
+    else{b.textContent=last?last.t:"Antes do primeiro capítulo";p.textContent=(last?"Último acontecimento há "+(v-last.b)+(v-last.b===1?" dia. ":" dias. "):"")+(next?"Próximo: "+next.t+", em "+(next.a-v)+(next.a-v===1?" dia.":" dias."):"Nenhum acontecimento depois.")}
+    ro.append(b,p)}
+  day.addEventListener("input",tl);tl();
+
+  /* mapa */
+  var vd=$("#verdict"),modes=$$("#modes button");
+  function trip(v){var days=Math.ceil(180/v),ok=days<=2;vd.className="verdict "+(ok?"ok":"bad");vd.textContent=ok?"Cabe: "+days+" dias de viagem, e as cenas estão separadas por 2.":"Não cabe: são "+days+" dias de viagem, e as cenas estão separadas por 2. O Scriptorium marca o trecho para você revisar."}
+  modes.forEach(function(b){b.addEventListener("click",function(){modes.forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});trip(+b.dataset.v)})});trip(30);
+})();
+</script>
+
+</body>
+</html>
