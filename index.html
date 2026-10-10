@@ -354,6 +354,51 @@ h3.sec{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
 .onb-opt:hover,.onb-opt.on{border-color:var(--gilt);box-shadow:0 0 0 3px var(--sel)}
 .onb-opt b{font-family:var(--f-display);font-weight:400;font-size:18px}
 .onb-opt span{font-size:12.5px;color:var(--muted)}
+/* ---------- tela de entrada ---------- */
+.wl{min-height:100%;display:grid;justify-items:stretch;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);align-items:center;gap:clamp(24px,5vw,72px);max-width:1180px;margin:0 auto;padding:clamp(24px,6vh,64px) clamp(18px,4vw,48px)}
+.wl-main{display:flex;flex-direction:column;gap:22px;min-width:0}
+.wl-brand{display:flex;align-items:center;gap:10px;font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--gilt-ink);font-weight:600}
+.wl-brand:before{content:"";width:28px;height:1px;background:var(--gilt)}
+.wl h1{font-family:var(--f-display);font-weight:400;font-size:clamp(38px,5.6vw,66px);line-height:1.02;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.wl h1 em{font-style:italic;color:var(--wine)}
+.wl-lead{color:var(--muted);font-size:16px;line-height:1.55;max-width:46ch;margin:0}
+.wl-doors{display:flex;flex-direction:column;gap:10px;max-width:480px}
+.wl-door{display:grid;grid-template-columns:40px 1fr 18px;align-items:center;gap:14px;text-align:left;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r-3);background:var(--paper);transition:border-color .15s,transform .15s,box-shadow .15s}
+.wl-door:hover{border-color:var(--gilt);transform:translateX(3px);box-shadow:0 6px 22px -14px var(--gilt)}
+.wl-door:focus-visible{outline:2px solid var(--gilt);outline-offset:2px}
+.wl-door .ic{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;background:var(--gilt-soft);color:var(--gilt-ink)}
+.wl-door b{display:block;font-family:var(--f-display);font-weight:400;font-size:18px;line-height:1.2}
+.wl-door span.d{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.wl-door .go{color:var(--muted);font-size:18px}
+.wl-door.main{background:var(--ink,#1c1a17);border-color:transparent}
+.wl-door.main b,.wl-door.main .go{color:var(--bg)}
+.wl-door.main span.d{color:color-mix(in srgb,var(--bg) 70%,transparent)}
+.wl-door.main .ic{background:color-mix(in srgb,var(--bg) 14%,transparent);color:var(--bg)}
+.wl-foot{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--muted);align-items:center}
+.wl-foot a{color:var(--gilt-ink);text-decoration:underline;text-underline-offset:3px}
+.wl-quiet{background:none;border:0;color:var(--muted);font-size:13px;text-decoration:underline;text-underline-offset:3px;padding:4px 0;align-self:flex-start}
+.wl-quiet:hover{color:var(--fg,var(--ink))}
+.wl-art{position:relative;aspect-ratio:4/5;max-height:560px;width:100%;justify-self:center}
+.wl-sheet{position:absolute;inset:6% 8% 4% 6%;background:var(--paper);border:1px solid var(--line);border-radius:6px;box-shadow:0 22px 40px -26px rgba(0,0,0,.45)}
+.wl-sheet.s3{transform:rotate(5deg) translate(6%,2%);background:var(--sunk)}
+.wl-sheet.s2{transform:rotate(-3deg) translate(-3%,1%)}
+.wl-sheet.s1{display:flex;flex-direction:column;gap:9px;padding:9% 10%;transform:rotate(.6deg)}
+.wl-sheet .ch{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--gilt-ink);font-weight:600}
+.wl-sheet .tt{font-family:var(--f-display);font-size:clamp(20px,2.6vw,30px);line-height:1.1;margin:0 0 6px}
+.wl-sheet .ln{height:7px;border-radius:4px;background:var(--line);opacity:.9}
+.wl-sheet .row1{display:flex;gap:10px;align-items:flex-start}
+.wl-sheet .cap{font-family:var(--f-display);font-size:clamp(44px,6vw,70px);line-height:.8;color:var(--wine);padding-top:4px}
+.wl-sheet .lns{flex:1;min-width:0;display:flex;flex-direction:column;gap:9px;padding-top:6px}
+.wl-sheet .ln.hl{background:color-mix(in srgb,var(--gilt) 30%,transparent);height:7px;border-radius:4px}
+.wl-chip{position:absolute;display:flex;flex-direction:column;gap:1px;padding:9px 12px;border-radius:10px;background:var(--raise);border:1px solid var(--line);box-shadow:0 10px 24px -14px rgba(0,0,0,.5);font-size:12px;line-height:1.3;z-index:2}
+.wl-chip b{font-weight:600;font-size:12.5px}
+.wl-chip small{color:var(--muted);font-size:11px}
+.wl-chip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:baseline}
+.wl-chip.a{left:-5%;top:60%}.wl-chip.b{right:-3%;top:24%}.wl-chip.c{right:4%;bottom:2%}
+@media (prefers-reduced-motion:no-preference){.wl-art .wl-chip{animation:wlf 7s ease-in-out infinite}.wl-art .wl-chip.b{animation-delay:-2.3s}.wl-art .wl-chip.c{animation-delay:-4.6s}}
+@keyframes wlf{50%{transform:translateY(-6px)}}
+@media (max-width:860px){.wl{grid-template-columns:minmax(0,1fr)}.wl-art{order:-1;max-height:240px;aspect-ratio:auto;height:240px}.wl-sheet.s1{padding:6% 8%}.wl-sheet .lns .ln:nth-child(n+4),.wl-sheet .l2{display:none}.wl-chip.c{display:none}}
+
 .onb .motto{font-family:var(--f-text);font-style:italic;color:var(--ink-2);margin-top:30px}
 
 /* ---------- sidebar & tree ---------- */
@@ -3075,6 +3120,8 @@ const Commands = {
     L.push({ label: "Novo projeto", icon: "plus", run: () => NewProject.open() });
     L.push({ label: "Importar obra (DOCX, EPUB, TXT, Markdown)", icon: "upload", run: () => Importer.open() });
     if (S.route.view === "project") L.push({ label: "Importar fichas (planilha, lista, notas)", icon: "people", run: () => FichaImport.open() });
+    if (S.route.view === "project") L.push({ label: "Datas dos capítulos: importar ou exportar (planilha, CSV)", icon: "history", run: () => DImport.open() });
+    if (S.route.view === "project") L.push({ label: "Importar worldbuilding (arquivo Markdown)", icon: "download", run: () => WImport.open() });
     if (inProj) {
       for (const [k, l, ic, kb] of TABS) L.push({ label: l, icon: ic, key: kb, run: () => App.go({ view: "project", tab: k, nid: S.route.nid }) });
       L.push({ label: "Novo capítulo", icon: "page", key: "Ctrl+Alt+C", run: () => Tree.quickAdd("capitulo") });
@@ -8846,7 +8893,7 @@ const Timeline = {
       h("span", { style: { flex: 1 } }), h("button", { class: "btn sm", onclick: () => World.createIn("era", null) }, icon("hourglass", "sm"), "Nova era"), h("button", { class: "btn sm", onclick: () => Codex.create("evento") }, icon("plus", "sm"), "Novo evento")));
     if (this.order === "tabela") { page.append(this.table(all.filter(x => x.kind === "cena"), main)); main.replaceChildren(page); return; }
     if (!dated.length) {
-      page.append(h("div", { class: "empty" }, h("b", null, "Nada datado ainda"), "Crie eventos com ano, preencha o ano de nascimento dos personagens ou defina o ano das cenas na Ficha da cena (ou escreva o ano no campo Tempo, como “verão de 298”)."));
+      page.append(h("div", { class: "empty" }, h("b", null, "Nada datado ainda"), h("button", { class: "btn primary", style: { margin: "6px 0 10px" }, onclick: () => DImport.open() }, icon("download", "sm"), "Importar as datas dos capítulos de uma planilha"), h("div", null, "Ou crie eventos com ano, preencha o ano de nascimento dos personagens ou defina o ano das cenas na Ficha da cena (ou escreva o ano no campo Tempo, como “verão de 298”).")));
     } else if (this.order === "livro") page.append(this.bookOrder(dated.filter(x => x.kind === "cena")));
     else page.append(this.chrono(dated));
     if (undated.length && this.kinds.cena) page.append(h("p", { class: "muted", style: { marginTop: "22px", fontSize: "13px" } }, `${undated.length} ${undated.length === 1 ? "cena sem ano" : "cenas sem ano"}. Defina o ano na Ficha da cena para que entrem aqui.`));
@@ -9157,7 +9204,7 @@ const DImport = {
     z.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
     z.file("xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${esc(sheet).slice(0, 31)}" sheetId="1" r:id="rId1"/></sheets></workbook>`);
     z.file("xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
-    z.file("xl/styles.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="2"><xf/><xf fontId="1" applyFont="1"/></cellXfs></styleSheet>`);
+    z.file("xl/styles.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`);
     z.file("xl/worksheets/sheet1.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="7" customWidth="1"/><col min="2" max="2" width="30" customWidth="1"/><col min="3" max="10" width="16" customWidth="1"/></cols><sheetData>${sx}</sheetData></worksheet>`);
     return z.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   },
@@ -12258,18 +12305,31 @@ const Boot = {
   },
   welcome(saved) {
     $("#sidebar").hidden = true; $("#statusbar").replaceChildren(h("span", null, "Scriptorium funciona sem internet. Seus arquivos ficam numa pasta sua."));
-    const box = h("div", { class: "onb-in" },
-      h("div", { class: "eyebrow" }, "Scriptorium"), h("h1", null, saved || GDrive.cfg.rootId ? "Bem-vindo de volta." : "Onde fica a sua biblioteca?"),
-      h("p", null, saved ? "Por segurança, o navegador pede sua permissão para abrir a pasta a cada vez." : "Escolha (ou crie) uma pasta no seu computador. Cada obra vira uma subpasta com os capítulos e as fichas em arquivos de texto que você pode abrir em qualquer editor."),
-      h("div", { style: { display: "flex", flexDirection: "column", gap: "10px", maxWidth: "420px", margin: "0 auto" } },
-        saved ? h("button", { class: "btn primary", style: { height: "44px" }, onclick: async () => { if (await Disk.permission(saved, true)) { await Disk.useFolder(saved); this.enter(); } else UI.toast("Sem permissão. Escolha a pasta de novo."); } }, icon("folder", "sm"), `Abrir a biblioteca “${saved.name}”`) : null,
-        h("button", { class: "btn" + (saved ? "" : " primary"), style: { height: "44px" }, onclick: () => this.chooseFolder() }, icon("folder", "sm"), saved ? "Escolher outra pasta" : "Escolher a pasta da biblioteca"),
-        GDrive.available() ? h("button", { class: "btn" + (!Disk.hasFS() ? " primary" : ""), style: { height: "44px" }, onclick: () => this.gdrive() }, icon("globe", "sm"), GDrive.cfg.rootId ? "Abrir a biblioteca do Google Drive" : "Google Drive: entrar com a conta Google") : null,
-        h("button", { class: "btn ghost", onclick: () => { Disk.useBrowser(); this.enter(); } }, "Usar sem pasta (guardar só neste navegador)")),
-      h("p", { class: "muted", style: { marginTop: "26px", fontSize: "13px" } }, "Dica: se a pasta estiver dentro do Google Drive, OneDrive ou Dropbox, você ganha uma cópia na nuvem automaticamente."),
-      h("div", { class: "motto" }, "Escreva. Organize. Construa mundos."));
-    $("#main").replaceChildren(h("div", { class: "onb" }, box));
+    const back = !!(saved || GDrive.cfg.rootId);
+    const door = (ic, title, desc, fn, main) => h("button", { class: "wl-door" + (main ? " main" : ""), onclick: fn }, h("span", { class: "ic" }, icon(ic)), h("span", null, h("b", null, title), h("span", { class: "d" }, desc)), h("span", { class: "go", "aria-hidden": "true" }, "→"));
+    const doors = [];
+    if (saved) doors.push(door("folder", `Abrir “${saved.name}”`, "Sua biblioteca, do jeito que você deixou.", async () => { if (await Disk.permission(saved, true)) { await Disk.useFolder(saved); this.enter(); } else UI.toast("Sem permissão. Escolha a pasta de novo."); }, true));
+    doors.push(door("folder", saved ? "Escolher outra pasta" : "Escolher a pasta da biblioteca", saved ? "Abrir uma biblioteca que está em outro lugar." : "Cada obra vira uma subpasta com capítulos e fichas em texto simples.", () => this.chooseFolder(), !saved));
+    if (GDrive.available()) doors.push(door("globe", GDrive.cfg.rootId ? "Abrir a biblioteca do Google Drive" : "Entrar com a conta Google", "Escreva de qualquer computador, com tudo guardado no seu Drive.", () => this.gdrive(), !saved && !Disk.hasFS()));
+    const art = h("div", { class: "wl-art", "aria-hidden": "true" },
+      h("div", { class: "wl-sheet s3" }), h("div", { class: "wl-sheet s2" }),
+      h("div", { class: "wl-sheet s1" }, h("div", { class: "ch" }, "Capítulo 1"), h("div", { class: "tt" }, "A queda da Torre Branca"),
+        h("div", { class: "row1" }, h("div", { class: "cap" }, "A"), h("div", { class: "lns" }, h("div", { class: "ln", style: { width: "96%" } }), h("div", { class: "ln hl", style: { width: "88%" } }), h("div", { class: "ln", style: { width: "94%" } }))),
+        [92, 97, 60, 0, 95, 90, 74].map(w => w ? h("div", { class: "ln" + (w === 90 ? " l2" : ""), style: { width: w + "%" } }) : h("div", { style: { height: "6px" } }))),
+      h("div", { class: "wl-chip a" }, h("b", null, h("i", { style: { background: "var(--wine)" } }), "Ano 41 · dia 132"), h("small", null, "Altaneira · linha do tempo")),
+      h("div", { class: "wl-chip b" }, h("b", null, h("i", { style: { background: "var(--gilt)" } }), "Casa Vireu"), h("small", null, "Ficha · 12 conexões")),
+      h("div", { class: "wl-chip c" }, h("b", null, h("i", { style: { background: "var(--info, #2E5E8C)" } }), "1 842 palavras hoje"), h("small", null, "Meta diária: 1 000")));
+    $("#main").replaceChildren(h("div", { class: "onb wl" },
+      h("div", { class: "wl-main" },
+        h("div", { class: "wl-brand" }, "Scriptorium"),
+        h("h1", null, back ? "Sua biblioteca, " : "Escreva a saga. ", h("em", null, back ? "de volta." : "Guarde o mundo.")),
+        h("p", { class: "wl-lead" }, saved ? "Por segurança, o navegador pede sua permissão para abrir a pasta a cada vez. Um clique e você continua de onde parou." : "Manuscrito, fichas, mapas e linha do tempo no mesmo lugar. Escolha uma pasta do seu computador: tudo fica em arquivos que você pode abrir em qualquer editor."),
+        h("div", { class: "wl-doors" }, doors),
+        h("button", { class: "wl-quiet", onclick: () => { Disk.useBrowser(); this.enter(); } }, "Experimentar sem pasta (guarda só neste navegador)"),
+        h("div", { class: "wl-foot" }, h("span", null, "Funciona sem internet. Seus textos não saem do seu computador."), h("a", { href: "https://ojuscelino.github.io/Scriptorium/sobre.html", target: "_blank", rel: "noopener" }, "Conheça os recursos"))),
+      art));
   },
+
   async chooseFolder() {
     const wasBrowser = Disk.mode === "browser";
     let browserFiles = [];
