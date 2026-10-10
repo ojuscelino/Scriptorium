@@ -3850,7 +3850,7 @@ const Collections = {
     if (!Object.keys(c.world).length) Object.assign(c.world, clone(ow));
     else { for (const k of ["genre", "now", "travel", "nameStyle", "hideKinds"]) if (c.world[k] == null && ow[k] != null) c.world[k] = clone(ow[k]); for (const k of ["hide", "custom", "fields"]) if (ow[k]) { c.world[k] ||= {}; for (const [kind, v] of Object.entries(ow[k])) if (c.world[k][kind] == null) c.world[k][kind] = clone(v); } }
     if (!Object.values(c.timeline).some(v => v != null && v !== "")) Object.assign(c.timeline, clone(ot));
-    else for (const k of ["era", "months", "monthDays"]) if (c.timeline[k] == null && ot[k] != null) c.timeline[k] = clone(ot[k]);
+    else for (const k of ["era", "months", "monthDays", "dayMode", "yearDays"]) if (c.timeline[k] == null && ot[k] != null) c.timeline[k] = clone(ot[k]);
     // a obra passa a apontar para as fichas da coleção
     for (const n of j.estrutura || []) { if (n.pov) n.pov = mapId(n.pov); if (n.place) n.place = mapId(n.place); }
     for (const n of j.notas || []) if (n.eid) n.eid = mapId(n.eid);
@@ -3927,7 +3927,7 @@ const Collections = {
       flat.filter(n => n.type === "cena" || (n.type === "capitulo" && !(kids.get(n.id) || []).some(k => k.type === "cena"))).forEach((n, i) => {
         const y = Timeline.unitYear(n); if (y == null) return;
         const pd = parseDate(n.time) || {}; let ch = null, q = n; while (q) { if (q.type === "capitulo") { ch = q; break; } q = q.parent ? byId.get(q.parent) : null; }
-        out.push({ kind: "outra", year: y, m: +n.month || pd.m || null, d: +n.day || pd.d || null, title: `${ch && ch.id !== n.id ? ch.title + " · " : ""}${n.title}`, work: p.title, wpid: p.id, wnid: n.id, sub: n.time || "", who: n.pov && S.codex.has(n.pov) ? [n.pov] : [], pov: n.pov, place: n.place, order: 0, seq: i + 1, summary: n.summary });
+        out.push({ kind: "outra", year: y, m: Timeline.dayMode() ? null : +n.month || pd.m || null, d: +n.day || pd.d || null, e: +n.dayEnd || null, title: `${ch && ch.id !== n.id ? ch.title + " · " : ""}${n.title}`, work: p.title, wpid: p.id, wnid: n.id, sub: n.time || "", who: n.pov && S.codex.has(n.pov) ? [n.pov] : [], pov: n.pov, place: n.place, order: 0, seq: i + 1, summary: n.summary });
       });
     }
     this._os = { key, at: Date.now(), L: out }; return out;
@@ -4558,7 +4558,11 @@ const SceneCard = {
       UI.field("Estado", UI.select(NODE_STATUS, n.status || "rascunho", v => { Tree.setStatus(n.id, v); }, { id: "sc-status" })),
       Data.hasText(n) || n.type === "capitulo" ? h("div", { class: "grid2" }, UI.field("POV", povSel), UI.field("Local", placeSel)) : null,
       Data.hasText(n) ? h("div", { class: "grid2" }, txt("time", "Tempo da história", "Ex.: 14º dia, inverno de 298"), (() => { const el = h("input", { class: "input", type: "number", value: n.year ?? "", placeholder: parseYear(n.time) != null ? `Do campo ao lado: ${parseYear(n.time)}` : "Ex.: 298", id: "sc-year" }); el.addEventListener("input", () => { n.year = el.value === "" ? null : +el.value; save(); }); return UI.field("Ano (linha do tempo)", el); })()) : null,
-      Data.hasText(n) ? h("div", { class: "grid2" }, UI.field("Mês", UI.select([["", "—"], ...calMonths().map((m, i) => [String(i + 1), m])], n.month ? String(n.month) : "", v => { n.month = v ? +v : null; save(); }, { id: "sc-month" })), (() => { const el = h("input", { class: "input", type: "number", min: 1, max: 31, value: n.day ?? "", placeholder: "Ex.: 14", id: "sc-day" }); el.addEventListener("input", () => { n.day = el.value === "" ? null : clamp(+el.value, 1, 31); save(); }); return UI.field("Dia", el); })()) : null,
+      Data.hasText(n) ? (() => { const dm = Timeline.dayMode(), mx = dm ? Timeline.yearDays() : 31; const dayIn = (k, id, ph) => { const el = h("input", { class: "input", type: "number", min: 1, max: mx, value: n[k] ?? "", placeholder: ph, id }); el.addEventListener("input", () => { n[k] = el.value === "" ? null : clamp(+el.value, 1, mx); save(); }); return el; };
+        return h("div", { class: dm ? "grid2" : "", style: dm ? null : { display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: "10px" } },
+          dm ? null : UI.field("Mês", UI.select([["", "—"], ...calMonths().map((m, i) => [String(i + 1), m])], n.month ? String(n.month) : "", v => { n.month = v ? +v : null; save(); }, { id: "sc-month" })),
+          UI.field(dm ? "Dia do ano" : "Dia", dayIn("day", "sc-day", dm ? `1 a ${mx}` : "Ex.: 14")), UI.field("Até o dia", dayIn("dayEnd", "sc-dayend", "se durar")));
+      })() : null,
       txt("summary", "Resumo", "O que acontece aqui, em uma ou duas frases.", true),
       Data.hasText(n) ? h("div", { class: "grid2" }, txt("goal", "Objetivo", "O que o POV quer"), txt("conflict", "Conflito", "O que impede")) : null,
       Data.hasText(n) ? txt("outcome", "Resultado", "Como a cena termina para o POV") : null,
@@ -8773,6 +8777,10 @@ const Timeline = {
     return L.sort((x, y) => x.a - y.a || x.depth - y.depth);
   },
   eraAt(y) { if (y == null) return null; const L = this.eras().filter(e => e.a <= y && (e.b == null || y <= e.b)); return L.sort((a, b) => b.depth - a.depth || b.a - a.a)[0] || null; },
+  /* calendário por dia do ano: só ano + dia (1 a 365), sem meses */
+  dayMode() { return !!S.P?.timeline?.dayMode; },
+  yearDays() { return clamp(+S.P?.timeline?.yearDays || 365, 1, 1000); },
+  unitDate(n) { const pd = parseDate(n.time) || {}; return this.dayMode() ? { m: null, d: +n.day || null, e: +n.dayEnd || null } : { m: +n.month || pd.m || null, d: +n.day || pd.d || null, e: +n.dayEnd || null }; },
   unitYear(n) { return n.year != null && n.year !== "" && !isNaN(+n.year) ? +n.year : parseYear(n.time); },
   eraFmt(y) { const era = S.P.timeline?.era || ""; if (y == null) return "Sem data"; if (y < 0 && /d\.?c|dc/i.test(era)) return `${-y} a.C.`; return `${y}${era ? " " + era : ""}`; },
   entries() {
@@ -8781,7 +8789,7 @@ const Timeline = {
       if (e.kind === "evento") {
         const pd = parseDate(e.fields?.quando) || {};
         const y = e.fields?.ano !== undefined && e.fields?.ano !== "" && !isNaN(+e.fields.ano) ? +e.fields.ano : pd.y ?? null;
-        const mo = +e.fields?.mes || this.monthIdx(e.fields?.mes) || pd.m || null, dy = +e.fields?.dia || pd.d || null;
+        const mo = this.dayMode() ? null : +e.fields?.mes || this.monthIdx(e.fields?.mes) || pd.m || null, dy = +e.fields?.dia || pd.d || null;
         const who = new Set(); for (const src of [e.fields?.participantes, e.fields?.descricao, e.fields?.consequencias]) if (src) for (const [id] of Index.scan(src)) who.add(id);
         for (const r of e.rels || []) if (r.to) who.add(r.to);
         const place = e.fields?.local ? [...Index.scan(e.fields.local).keys()].find(id => ["lugar", "fortaleza"].includes(S.codex.get(id)?.kind)) : null;
@@ -8794,22 +8802,26 @@ const Timeline = {
     }
     Data.scenesInOrder().forEach((n, i) => {
       const y = this.unitYear(n); const pd = parseDate(n.time) || {};
-      const mo = +n.month || pd.m || null, dy = +n.day || pd.d || null;
+      const ud = this.unitDate(n), mo = ud.m, dy = ud.d;
       const ch = Data.chapterOf(n.id);
       const who = [...Index.inNode(n.id)].filter(([id]) => S.codex.get(id)?.kind === "personagem").sort((a, b) => b[1] - a[1]).map(([id]) => id);
       if (n.pov && !who.includes(n.pov)) who.unshift(n.pov);
-      out.push({ kind: "cena", year: y, m: mo, d: dy, title: ch && ch.id !== n.id ? `${ch.title} · ${n.title}` : n.title, sub: n.time || "", who: who.slice(0, 8), pov: n.pov, place: n.place, nid: n.id, order: 0, seq: i + 1, summary: n.summary });
+      out.push({ kind: "cena", year: y, m: mo, d: dy, e: ud.e, title: ch && ch.id !== n.id ? `${ch.title} · ${n.title}` : n.title, sub: n.time || "", who: who.slice(0, 8), pov: n.pov, place: n.place, nid: n.id, order: 0, seq: i + 1, summary: n.summary });
     });
     return out;
   },
   monthIdx(v) { if (!v) return null; const i = calMonths().findIndex(m => norm(m) === norm(v) || norm(m).startsWith(norm(String(v)).slice(0, 3))); return i >= 0 ? i + 1 : null; },
-  dayFmt(x) { if (!x.m && !x.d) return ""; const mn = x.m ? calMonths()[x.m - 1] || `mês ${x.m}` : ""; return x.d && mn ? `${x.d} de ${mn}` : x.d ? `dia ${x.d}` : mn; },
+  dayFmt(x) { if (this.dayMode()) return x.d ? (x.e && x.e !== x.d ? `dias ${x.d} a ${x.e}` : `dia ${x.d}`) : ""; if (!x.m && !x.d) return ""; const mn = x.m ? calMonths()[x.m - 1] || `mês ${x.m}` : ""; return x.d && mn ? `${x.d}${x.e && x.e > x.d ? "–" + x.e : ""} de ${mn}` : x.d ? `dia ${x.d}` : mn; },
   editCalendar() {
     const ta = h("textarea", { class: "textarea", rows: 12 }, calMonths().join("\n"));
     const md = h("input", { class: "input", type: "number", min: 1, max: 400, value: S.P.timeline?.monthDays || 30, style: { width: "90px" } });
     md.addEventListener("change", () => { S.P.timeline.monthDays = clamp(+md.value || 30, 1, 400); Data.saveProject(); });
-    const m = UI.modal({ title: "Calendário da obra", sub: "Um mês por linha, na ordem. Use os meses do seu mundo (ex.: Nisã, Iyar, Sivã…).", body: h("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } }, ta, h("label", { class: "row", style: { gap: "8px", fontSize: "13.5px" } }, "Dias por mês (para contar viagens e intervalos)", md)),
-      foot: [h("button", { class: "btn ghost", onclick: () => { S.P.timeline.months = null; Data.saveProject(); m.close(); this.render($("#main")); } }, "Voltar ao calendário comum"), h("span", { class: "grow" }), h("button", { class: "btn primary", onclick: () => { const L = ta.value.split(/\n+/).map(x => x.trim()).filter(Boolean); S.P.timeline.months = L.length ? L : null; Data.saveProject(); m.close(); this.render($("#main")); } }, "Salvar")] });
+    const dmc = h("input", { type: "checkbox", checked: this.dayMode() }), yd = h("input", { class: "input", type: "number", min: 1, max: 1000, value: S.P.timeline?.yearDays || 365, style: { width: "90px" } });
+    const m = UI.modal({ title: "Calendário da obra", sub: "Um mês por linha, na ordem. Use os meses do seu mundo (ex.: Nisã, Iyar, Sivã…).", body: h("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } }, ta,
+      h("label", { class: "row", style: { gap: "8px", fontSize: "13.5px", alignItems: "flex-start" } }, dmc, h("span", null, "Contar por dia do ano (1, 2, 3…), sem meses", h("div", { class: "muted", style: { fontSize: "12px" } }, "Ideal para cronologias como a de ASOIAF: ano + dia. Cada cena ou capítulo ganha “dia” e, se durar, “até o dia”."))),
+      h("label", { class: "row", style: { gap: "8px", fontSize: "13.5px" } }, "Dias em um ano", yd),
+      h("label", { class: "row", style: { gap: "8px", fontSize: "13.5px" } }, "Dias por mês (para contar viagens e intervalos)", md)),
+      foot: [h("button", { class: "btn ghost", onclick: () => { S.P.timeline.months = null; S.P.timeline.dayMode = null; Data.saveProject(); m.close(); this.render($("#main")); } }, "Voltar ao calendário comum"), h("span", { class: "grow" }), h("button", { class: "btn primary", onclick: () => { const L = ta.value.split(/\n+/).map(x => x.trim()).filter(Boolean); S.P.timeline.months = L.length ? L : null; S.P.timeline.dayMode = dmc.checked || null; S.P.timeline.yearDays = clamp(+yd.value || 365, 1, 1000); Data.saveProject(); m.close(); this.render($("#main")); } }, "Salvar")] });
   },
   ageOf(id, y) { const b = parseYear(S.codex.get(id)?.fields?.nascimento); return b != null && y != null ? y - b : null; },
   async render(main) {
@@ -8827,11 +8839,12 @@ const Timeline = {
     page.append(h("div", { class: "page-head" },
       h("div", null, h("div", { class: "eyebrow" }, "Bíblia da obra"), h("h1", { class: "display" }, "Linha do tempo"), h("p", null, "Montada sozinha a partir dos eventos, das cenas com data (ano, mês e dia) e das datas de nascimento e morte das fichas. Dentro de cada ano, tudo fica em ordem de mês e dia.")),
       h("div", { class: "row" }, UI.select([["", "Todos os personagens"], ...chars.map(c => [c.id, c.name])], this.who, v => { this.who = v; this.render(main); }, { style: { width: "auto" }, id: "tl-who", "aria-label": "Personagem" }),
-        UI.seg([["historia", "Cronológica"], ["livro", "Ordem do livro"]], this.order, v => { this.order = v; this.render(main); }), era, h("button", { class: "btn sm", onclick: () => this.editCalendar(), title: "Meses do calendário da obra" }, icon("history", "sm"), "Calendário"), h("button", { class: "btn sm", onclick: () => this.calc(), title: "Há quantos anos, idades, intervalos" }, icon("calc", "sm"), "Calculadora"))));
+        UI.seg([["historia", "Cronológica"], ["livro", "Ordem do livro"], ["tabela", "Tabela"]], this.order, v => { this.order = v; this.render(main); }), era, h("button", { class: "btn sm", onclick: () => this.editCalendar(), title: "Meses do calendário da obra" }, icon("history", "sm"), "Calendário"), h("button", { class: "btn sm", onclick: () => this.calc(), title: "Há quantos anos, idades, intervalos" }, icon("calc", "sm"), "Calculadora"), h("button", { class: "btn sm", id: "tl-import", onclick: () => DImport.open(), title: "Importar ou exportar as datas dos capítulos (planilha ou CSV)" }, icon("download", "sm"), "Datas…"))));
     page.append(this.ruler(all));
     page.append(h("div", { class: "row", style: { gap: "6px", marginBottom: "18px" } }, [["evento", "Eventos"], ["cena", "Cenas"], ["vida", "Nascimentos e mortes"], ...(Data.inCol() && Collections.works(S.C).length > 1 ? [["outra", "Outras obras da coleção"]] : [])].map(([k, l]) => h("button", { class: "chip" + (this.kinds[k] ? " on" : ""), onclick: () => { this.kinds[k] = !this.kinds[k]; this.render(main); } }, l)),
       this.range ? h("button", { class: "chip on", onclick: () => { this.range = null; this.render(main); } }, `Só ${this.eraFmt(this.range[0])} a ${this.range[1] != null ? this.eraFmt(this.range[1]) : "hoje"} ×`) : null,
       h("span", { style: { flex: 1 } }), h("button", { class: "btn sm", onclick: () => World.createIn("era", null) }, icon("hourglass", "sm"), "Nova era"), h("button", { class: "btn sm", onclick: () => Codex.create("evento") }, icon("plus", "sm"), "Novo evento")));
+    if (this.order === "tabela") { page.append(this.table(all.filter(x => x.kind === "cena"), main)); main.replaceChildren(page); return; }
     if (!dated.length) {
       page.append(h("div", { class: "empty" }, h("b", null, "Nada datado ainda"), "Crie eventos com ano, preencha o ano de nascimento dos personagens ou defina o ano das cenas na Ficha da cena (ou escreva o ano no campo Tempo, como “verão de 298”)."));
     } else if (this.order === "livro") page.append(this.bookOrder(dated.filter(x => x.kind === "cena")));
@@ -8846,7 +8859,7 @@ const Timeline = {
     return h("div", { class: "tl-card" + (x.kind === "outra" ? " other" : "") },
       h("span", { class: "tl-dot", style: { background: kindDot } }),
       h("div", { style: { flex: 1, minWidth: 0 } },
-        h("button", { class: "tl-t", onclick: open }, x.title), x.end != null ? h("span", { class: "muted" }, ` → ${this.eraFmt(x.end)}`) : null,
+        h("button", { class: "tl-t", onclick: open }, x.title), x.nid && x.kind === "cena" ? h("button", { class: "iconbtn", style: { marginLeft: "6px" }, title: "Editar a data deste capítulo/cena (vale também no editor)", "aria-label": "Editar data", onclick: () => this.editDate(x.nid) }, icon("pen", "sm")) : null, x.end != null ? h("span", { class: "muted" }, ` → ${this.eraFmt(x.end)}`) : null,
         (x.sub || place || x.seq || x.m || x.d) ? h("div", { class: "muted", style: { fontSize: "12.5px" } }, [this.dayFmt(x) ? "📅 " + this.dayFmt(x) : null, x.kind === "cena" ? `Cena ${x.seq} do livro` : x.kind === "outra" ? `📖 ${x.work}` : kindLabelSing.evento && x.kind === "evento" ? "Evento" : null, x.sub && x.sub !== this.dayFmt(x) ? x.sub : null, place?.name].filter(Boolean).join(" · ")) : null,
         x.summary ? h("div", { class: "tl-s" }, x.summary) : null,
         x.who?.length ? h("div", { class: "appear", style: { marginTop: "6px" } }, x.who.slice(0, 8).map(id => { const c = S.codex.get(id); if (!c) return null; const age = this.ageOf(id, x.year); return h("button", { class: "chip", style: { height: "23px" }, onclick: () => { this.who = this.who === id ? "" : id; this.render($("#main")); } }, h("span", { class: "pov-dot", style: { "--h": povHue(id) } }), c.name, age != null && x.kind !== "vida" ? h("span", { class: "num muted" }, age >= 0 ? `${age} anos` : "não nasceu") : null, x.pov === id ? h("span", { class: "muted" }, "POV") : null); })) : null));
@@ -8860,7 +8873,7 @@ const Timeline = {
     const band = e => h("div", { class: "tl-era", style: { "--c": e.color, marginLeft: e.depth * 14 + "px" } }, h("button", { class: "lnk", onclick: () => Codex.go(e.id) }, e.name), h("span", { class: "muted" }, ` ${this.eraFmt(e.a)} – ${e.b != null ? this.eraFmt(e.b) : "em diante"}${e.b != null ? ` · ${nf(e.b - e.a)} anos` : ""}`), this.ago(e.a) ? h("span", { class: "muted" }, " · começou " + this.ago(e.a)) : null);
     for (const y of years) {
       while (ei < eras.length && eras[ei].a <= y) box.append(band(eras[ei++]));
-      const items = byYear.get(y).sort((a, b) => ((a.m || 0) * 100 + (a.d || 0)) - ((b.m || 0) * 100 + (b.d || 0)) || a.order - b.order || (a.seq || 0) - (b.seq || 0));
+      const items = byYear.get(y).sort((a, b) => ((a.m || 0) * 1000 + (a.d || 0)) - ((b.m || 0) * 1000 + (b.d || 0)) || (a.e || a.d || 0) - (b.e || b.d || 0) || a.order - b.order || (a.seq || 0) - (b.seq || 0));
       const era = this.eraAt(y);
       box.append(h("div", { class: "tl-year" + (era ? " in-era" : ""), style: era ? { "--c": era.color } : null }, h("div", { class: "tl-y" }, this.eraFmt(y), this.who && this.ageOf(this.who, y) != null ? h("small", null, `${S.codex.get(this.who).name.split(" ")[0]}: ${this.ageOf(this.who, y)} anos`) : null, this.ago(y) ? h("small", null, this.ago(y)) : null), h("div", { class: "tl-items" }, items.map(x => this.card(x)))));
     }
@@ -8889,10 +8902,11 @@ const Timeline = {
         if (e.kind === "era") return { y: parseYear(e.fields?.inicio), label: "início de " + e.name };
         if (e.kind === "personagem") { const d = parseDate(e.fields?.nascimento) || {}; return { y: d.y ?? null, m: d.m, d: d.d, label: "nascimento de " + e.name }; }
         const ev = this.entries().find(x => x.eid === e.id && x.kind === "evento"); return ev ? { y: ev.year, m: ev.m, d: ev.d, label: e.name } : null; }
+      if (this.dayMode()) { const q = String(p.y).match(/^\s*(-?\d{1,6})\D+(\d{1,4})\s*$/) || String(p.y).match(/(-?\d{1,6}).*?dia\s*(\d{1,4})/i); if (q) return { y: +q[1], d: +q[2], label: `${q[1]}, dia ${q[2]}` }; }
       const d = parseDate(p.y); return d?.y != null ? Object.assign({ label: String(p.y) }, d) : (p.y !== "" && isFinite(+p.y) ? { y: +p.y, label: String(p.y) } : null);
     };
     const pointUI = (p, lbl) => {
-      const yi = h("input", { class: "input", value: p.y, placeholder: "Ano (ou 12/3/298, 14 de Nisã de 1050)", style: { flex: 1, minWidth: "150px" } });
+      const yi = h("input", { class: "input", value: p.y, placeholder: this.dayMode() ? "Ano (ou “298, dia 120”)" : "Ano (ou 12/3/298, 14 de Nisã de 1050)", style: { flex: 1, minWidth: "150px" } });
       yi.addEventListener("input", debounce(() => { p.y = yi.value; p.ref = ""; sel.value = ""; out(); }, 250));
       const sel = UI.select([["", "— ou escolha —"], ["__now", "Ano atual da história"], ...fichas.map(e => [e.id, `${e.name} (${e.kind === "personagem" ? "nascimento" : kindLabelSing[e.kind].toLowerCase()})`])], p.ref, v => { p.ref = v; if (v) yi.value = ""; p.y = ""; out(); }, { style: { flex: 1, minWidth: "150px" } });
       return UI.field(lbl, h("div", { class: "row", style: { gap: "6px", flexWrap: "wrap" } }, yi, sel));
@@ -8902,7 +8916,8 @@ const Timeline = {
       const A = resolve(pts.a), B = resolve(pts.b);
       if (!A || A.y == null || !B || B.y == null) { res.replaceChildren(h("p", { class: "muted" }, "Preencha os dois pontos. Dá para usar anos negativos (antes da era).")); return; }
       let dy = B.y - A.y; let txt = `${nf(Math.abs(dy))} ${Math.abs(dy) === 1 ? "ano" : "anos"}`;
-      if (A.m && B.m) { let tm = (B.y * months.length + (B.m - 1)) - (A.y * months.length + (A.m - 1)); let dd = 0; if (A.d && B.d) { dd = B.d - A.d; if (dd < 0 && tm > 0) { tm--; dd += md; } } const yy = Math.trunc(tm / months.length), mm = Math.abs(tm % months.length); txt = [yy ? `${nf(Math.abs(yy))} ${Math.abs(yy) === 1 ? "ano" : "anos"}` : null, mm ? `${mm} ${mm === 1 ? "mês" : "meses"}` : null, dd ? `${Math.abs(dd)} ${Math.abs(dd) === 1 ? "dia" : "dias"}` : null].filter(Boolean).join(", ") || "mesmo dia"; if (A.d && B.d) txt += ` (≈ ${nf(Math.abs(tm * md + dd))} dias)`; }
+      if (this.dayMode() && A.d && B.d) { const Y = this.yearDays(), tot = (B.y - A.y) * Y + (B.d - A.d), a = Math.abs(tot), yy = Math.trunc(a / Y), dd = a % Y; txt = [yy ? `${nf(yy)} ${yy === 1 ? "ano" : "anos"}` : null, dd ? `${dd} ${dd === 1 ? "dia" : "dias"}` : null].filter(Boolean).join(" e ") || "mesmo dia"; if (yy) txt += ` (${nf(a)} dias)`; }
+      else if (A.m && B.m) { let tm = (B.y * months.length + (B.m - 1)) - (A.y * months.length + (A.m - 1)); let dd = 0; if (A.d && B.d) { dd = B.d - A.d; if (dd < 0 && tm > 0) { tm--; dd += md; } } const yy = Math.trunc(tm / months.length), mm = Math.abs(tm % months.length); txt = [yy ? `${nf(Math.abs(yy))} ${Math.abs(yy) === 1 ? "ano" : "anos"}` : null, mm ? `${mm} ${mm === 1 ? "mês" : "meses"}` : null, dd ? `${Math.abs(dd)} ${Math.abs(dd) === 1 ? "dia" : "dias"}` : null].filter(Boolean).join(", ") || "mesmo dia"; if (A.d && B.d) txt += ` (≈ ${nf(Math.abs(tm * md + dd))} dias)`; }
       const ea = this.eraAt(A.y), eb = this.eraAt(B.y);
       const alive = [...S.codex.values()].filter(c => c.kind === "personagem").map(c => ({ c, b: parseYear(c.fields?.nascimento), d: parseYear(c.fields?.morte) })).filter(x => x.b != null && x.b <= B.y && (x.d == null || x.d >= B.y)).sort((x, y) => x.b - y.b);
       res.replaceChildren(
@@ -8916,6 +8931,36 @@ const Timeline = {
     UI.modal({ title: "Calculadora do tempo", sub: "Há quantos anos, intervalos entre acontecimentos e idades.", body, size: "wide", foot: [] });
     out();
   },
+  /* edita a data de um capítulo/cena direto da linha do tempo (grava na própria cena) */
+  editDate(nid) {
+    const n = S.nodes.get(nid); if (!n) return;
+    const dm = this.dayMode(), mx = dm ? this.yearDays() : 31;
+    const num = (k, ph, max) => { const el = h("input", { class: "input", type: "number", value: n[k] ?? "", placeholder: ph, ...(max ? { min: 1, max } : {}) }); return el; };
+    const yi = num("year", "Ex.: 298"), mi = UI.select([["", "—"], ...calMonths().map((m, i) => [String(i + 1), m])], n.month ? String(n.month) : "", () => {}), di = num("day", dm ? `1 a ${mx}` : "1 a 31", mx), de = num("dayEnd", "se durar", mx);
+    const m = UI.modal({ title: n.title, sub: "Data na história. A mesma que aparece na Ficha da cena do editor.", body: h("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } }, UI.field("Ano", yi), dm ? null : UI.field("Mês", mi), h("div", { class: "grid2" }, UI.field(dm ? "Dia do ano" : "Dia", di), UI.field("Até o dia", de))),
+      foot: [h("button", { class: "btn ghost", onclick: () => m.close() }, "Cancelar"), h("span", { class: "grow" }), h("button", { class: "btn primary", onclick: () => {
+        const v = el => el.value === "" ? null : +el.value; n.year = v(yi); n.day = di.value === "" ? null : clamp(+di.value, 1, mx); n.dayEnd = de.value === "" ? null : clamp(+de.value, 1, mx); if (!dm) n.month = mi.value ? +mi.value : null;
+        Data.saveNodeSoon(n); m.close(); this.render($("#main")); } }, "Salvar")] });
+  },
+  /* tabela: todas as cenas/capítulos em ordem do livro, com ano, dia e local editáveis (a outra mão da importação) */
+  table(L, main) {
+    L = [...L].sort((a, b) => a.seq - b.seq); const dm = this.dayMode();
+    const places = [...S.codex.values()].filter(e => ["lugar", "fortaleza"].includes(e.kind)).sort((a, b) => a.name.localeCompare(b.name));
+    const dl = h("datalist", { id: "tl-places" }, places.map(p => h("option", { value: p.name })));
+    const onlyEmpty = !!this.onlyUndated;
+    const rows = L.filter(x => !onlyEmpty || x.year == null).map(x => {
+      const n = S.nodes.get(x.nid); if (!n) return null;
+      const inp = (k, w, max) => { const el = h("input", { class: "input", type: "number", value: n[k] ?? "", style: { width: w, padding: "4px 6px" }, "aria-label": k }); el.addEventListener("change", () => { n[k] = el.value === "" ? null : (max ? clamp(+el.value, 1, max) : +el.value); if (max && n[k] != null) el.value = n[k]; Data.saveNodeSoon(n); }); return el; };
+      const pl = h("input", { class: "input", list: "tl-places", value: S.codex.get(n.place)?.name || "", placeholder: "—", style: { minWidth: "150px", padding: "4px 6px" }, "aria-label": "Local" });
+      pl.addEventListener("change", () => { const e = pl.value.trim() ? Assist.findFicha(pl.value, "lugar") || Assist.findFicha(pl.value, "fortaleza") : null; if (!pl.value.trim()) n.place = null; else if (e) n.place = e.id; else { UI.toast(`Não há ficha de lugar chamada “${pl.value}”.`); pl.value = S.codex.get(n.place)?.name || ""; return; } Data.saveNodeSoon(n); });
+      const mo = dm ? null : UI.select([["", "—"], ...calMonths().map((mm, i) => [String(i + 1), mm])], n.month ? String(n.month) : "", v => { n.month = v ? +v : null; Data.saveNodeSoon(n); }, { style: { width: "auto" } });
+      return h("tr", null, h("td", { class: "num muted" }, x.seq), h("td", null, h("button", { class: "tl-t", onclick: () => App.openNode(n.id) }, x.title)), h("td", { class: "muted" }, S.codex.get(n.pov)?.name || "—"), h("td", null, inp("year", "78px")), mo ? h("td", null, mo) : null, h("td", null, inp("day", "70px", dm ? this.yearDays() : 31)), h("td", null, inp("dayEnd", "70px", dm ? this.yearDays() : 31)), h("td", null, pl));
+    }).filter(Boolean);
+    return h("div", null, dl,
+      h("div", { class: "row", style: { gap: "10px", margin: "0 0 10px", flexWrap: "wrap" } }, h("p", { class: "muted", style: { margin: 0, fontSize: "13px", flex: 1 } }, "Cada linha é um capítulo (ou cena). O que você muda aqui vale na Ficha da cena e vice-versa; a linha do tempo se reorganiza sozinha."),
+        h("button", { class: "chip" + (onlyEmpty ? " on" : ""), onclick: () => { this.onlyUndated = !this.onlyUndated; this.render(main); } }, "Só sem ano"), h("button", { class: "btn sm", onclick: () => DImport.open() }, icon("download", "sm"), "Importar / exportar…")),
+      L.length ? h("div", { class: "tablewrap", style: { overflow: "auto" } }, h("table", { class: "gl-table" }, h("thead", null, h("tr", null, ["Nº", "Capítulo", "POV", "Ano", ...(dm ? [] : ["Mês"]), dm ? "Dia do ano" : "Dia", "Até", "Local"].map(t => h("th", null, t)))), h("tbody", null, rows))) : h("div", { class: "empty" }, "Nenhum capítulo ou cena ainda."));
+  },
   bookOrder(L) {
     L = [...L].sort((a, b) => a.seq - b.seq);
     const box = h("div", { class: "tl" }); let prev = null;
@@ -8925,6 +8970,203 @@ const Timeline = {
       prev = x.year;
     }
     return h("div", null, h("p", { class: "muted", style: { margin: "0 0 12px", fontSize: "13px" } }, "As cenas na ordem em que o leitor as encontra, com o ano de cada uma. Saltos para trás indicam flashbacks."), box);
+  },
+};
+
+/* ===== 86b-dimport.js ===== */
+/* =====================================================================
+   Importar / exportar as datas dos capítulos (e cenas). Uma planilha (.xlsx),
+   um CSV ou texto colado vira ano, dia (ou mês e dia), “até o dia”, local, POV
+   e, se quiser, resumo e tempo da história. As datas vão para os próprios
+   capítulos, então a Linha do tempo, a Ficha da cena e os mapas já as enxergam.
+   O caminho de volta é a Linha do tempo (aba Tabela e o lápis de cada cartão)
+   e o botão “Exportar as datas atuais”, que gera a mesma planilha.
+   ===================================================================== */
+const DImport = {
+  COLS: {
+    n: ["n", "no", "num", "numero", "ordem", "posicao", "pos", "nomanuscrito", "ordemnomanuscrito", "ordemdoslivros", "seq", "capitulonumero"],
+    title: ["titulonomanuscrito", "titulo", "titulodocapitulo", "capitulo", "chapter", "title", "nome", "cena"],
+    year: ["ano", "anodc", "anoac", "anodepois", "year", "anonahistoria", "anodahistoria"],
+    month: ["mes", "month"],
+    day: ["dia", "diainicio", "diadoano", "day", "inicio", "start", "diainicial"],
+    end: ["diafim", "diafinal", "ate", "ateodia", "fim", "end", "dayend", "diatermino"],
+    place: ["local", "lugar", "place", "location", "cenario"],
+    pov: ["pov", "ponto de vista", "pontodevista", "narrador"],
+    time: ["tempo", "tempodahistoria", "quando", "data", "when"],
+    summary: ["resumo", "summary", "sinopse"],
+  },
+  key: s => norm(s).replace(/[^a-z0-9]+/g, ""),
+  tkey: s => norm(s).replace(/[^a-z0-9]+/g, ""),
+  /* ---------- leitura de uma tabela (linhas de células) ---------- */
+  fromRows(rows) {
+    const out = { rows: [], map: {}, era: "", warn: [] };
+    if (!rows || rows.length < 2) return out;
+    let hi = rows.findIndex(r => r.filter(x => String(x).trim()).length >= 2); if (hi < 0) return out;
+    const head = rows[hi].map(x => String(x ?? "")); const keys = head.map(x => this.key(x));
+    for (const [f, L] of Object.entries(this.COLS)) { const keySet = L.map(x => this.key(x)); let idx = -1; for (const k of keySet) { idx = keys.indexOf(k); if (idx >= 0) break; } if (idx >= 0) out.map[f] = idx; }
+    const yh = head[out.map.year ?? -1] || ""; const em = yh.match(/\(([^)]+)\)/); if (em) out.era = em[1].trim();
+    if (out.map.year == null && out.map.day == null && out.map.title == null) return out;
+    for (const r of rows.slice(hi + 1)) {
+      const g = f => out.map[f] == null ? "" : String(r[out.map[f]] ?? "").trim();
+      const num = f => { const v = g(f).replace(",", "."); return v !== "" && isFinite(+v) ? Math.round(+v) : null; };
+      const row = { n: num("n"), title: g("title"), year: num("year"), month: g("month"), day: num("day"), end: num("end"), place: g("place"), pov: g("pov"), time: g("time"), summary: g("summary") };
+      if (row.year == null && row.day == null && !row.month && !row.place && !row.time) { if (!row.title && row.n == null) continue; }
+      if (!row.title && row.n == null) continue;
+      out.rows.push(row);
+    }
+    return out;
+  },
+  async fromFile(f) {
+    const ext = (f.name.split(".").pop() || "").toLowerCase();
+    if (ext === "xlsx") {
+      const sheets = await FichaImport.parseXLSX(await f.arrayBuffer()); let best = null;
+      for (const sh of sheets) { const r = this.fromRows(sh.rows); r.sheet = sh.name; const score = r.rows.length + (r.map.year != null ? 1e4 : 0) + (r.map.day != null ? 1e4 : 0); r.score = score; if (!best || score > best.score) best = r; }
+      return best || { rows: [], map: {}, era: "" };
+    }
+    return this.fromRows(FichaImport.parseCSV(await f.text()));
+  },
+  /* ---------- casamento linha da tabela ↔ capítulo do projeto ---------- */
+  match(rows) {
+    const units = Data.scenesInOrder();
+    const nameKeys = u => { const ks = [this.tkey(u.title)]; const ch = Data.chapterOf(u.id); if (ch && ch.id !== u.id) ks.push(this.tkey(ch.title)); return ks; };
+    const byTitle = new Map(); units.forEach((u, i) => { for (const k of nameKeys(u)) (byTitle.get(k) || byTitle.set(k, []).get(k)).push(i); });
+    const used = new Set(), seen = new Map(), res = [];
+    for (const r of rows) {
+      let idx = -1, st = "ok";
+      const tk = r.title ? this.tkey(r.title) : "";
+      if (r.n != null && units[r.n - 1]) {
+        const u = units[r.n - 1];
+        if (!tk || nameKeys(u).includes(tk)) idx = r.n - 1;
+        else { const L = (byTitle.get(tk) || []).filter(i => !used.has(i)); if (L.length === 1 && Math.abs(L[0] - (r.n - 1)) <= 3) idx = L[0]; else { idx = r.n - 1; st = "conferir"; } }
+      } else if (tk) {
+        const L = byTitle.get(tk) || []; const c = seen.get(tk) || 0; seen.set(tk, c + 1);
+        idx = L[c] ?? -1; if (idx >= 0 && L.length > 1 && !r.n) st = "conferir";
+      }
+      if (idx < 0 || used.has(idx)) { res.push({ r, u: null, st: "sem" }); continue; }
+      used.add(idx); res.push({ r, u: units[idx], i: idx, st });
+    }
+    return res;
+  },
+  findPlace(name) { return name ? (Assist.findFicha(name, "lugar") || Assist.findFicha(name, "fortaleza") || null) : null; },
+  /* o que mudaria em cada cena */
+  plan(m, o) {
+    const n = m.u, r = m.r; const ch = {};
+    const put = (k, v, cur) => { if (v == null || v === "") return; if (o.mode === "fill" && cur != null && cur !== "") return; if (cur !== v) ch[k] = v; };
+    put("year", r.year, n.year);
+    const dayMode = o.dayMode; const mi = r.month ? (+r.month || Timeline.monthIdx(r.month)) : null;
+    if (!dayMode && mi) put("month", mi, n.month);
+    put("day", r.day != null ? clamp(r.day, 1, dayMode ? o.yearDays : 31) : null, n.day);
+    const end = r.end != null && r.end !== r.day ? clamp(r.end, 1, dayMode ? o.yearDays : 31) : null;
+    put("dayEnd", end, n.dayEnd);
+    if (end == null && o.mode === "replace" && r.day != null && n.dayEnd != null) ch.dayEnd = null;
+    if (o.time) put("time", r.time, n.time);
+    if (o.place && r.place) { const e = this.findPlace(r.place); m.place = e ? e.name : null; if (e) put("place", e.id, n.place); }
+    if (o.pov && r.pov) { const e = Assist.findFicha(r.pov, "personagem"); m.povFound = !!e; if (e) put("pov", e.id, n.pov); }
+    if (o.summary) put("summary", r.summary, n.summary);
+    return ch;
+  },
+  commit(list, o) {
+    let nUp = 0, nPlace = 0, nSkip = 0; const placesMissing = new Set();
+    for (const m of list) {
+      if (!m.on || !m.u) continue; const ch = this.plan(m, o);
+      if (m.r.place && !m.place) placesMissing.add(m.r.place);
+      if (!Object.keys(ch).length) { nSkip++; continue; }
+      Object.assign(m.u, ch); if (ch.place) nPlace++; nUp++;
+      m.u.updatedAt = Date.now();
+    }
+    S.P.timeline ||= {};
+    if (o.setCalendar && !Timeline.dayMode()) { S.P.timeline.dayMode = true; S.P.timeline.yearDays = o.yearDays; }
+    if (o.era && !S.P.timeline.era) S.P.timeline.era = o.era;
+    Data.writeObra(); Data.saveProject();
+    return { nUp, nPlace, nSkip, placesMissing: [...placesMissing] };
+  },
+  /* ---------- janela ---------- */
+  open() {
+    const st = { parsed: null, list: [], o: { mode: "replace", place: true, pov: false, summary: false, time: false, setCalendar: false, dayMode: Timeline.dayMode(), yearDays: Timeline.yearDays(), era: "" } };
+    const m = UI.modal({ title: "Datas dos capítulos", sub: "Preencha de uma vez o ano, o dia e o local de cada capítulo a partir de uma planilha (.xlsx), CSV ou texto colado. Na outra direção, exporte as datas atuais para editar fora.", size: "wide", body: h("div") });
+    const pick = h("input", { type: "file", accept: ".xlsx,.csv,.tsv,.txt", hidden: true });
+    const ta = h("textarea", { class: "textarea", id: "di-text", placeholder: "Ou cole aqui as linhas copiadas da planilha (com a linha de títulos das colunas).", style: { minHeight: "70px", fontFamily: "var(--mono, monospace)", fontSize: "12.5px" } });
+    const prev = h("div", { id: "di-prev" });
+    const load = parsed => {
+      st.parsed = parsed; st.list = this.match(parsed.rows).map(x => Object.assign(x, { on: x.st !== "sem" }));
+      const anyDay = parsed.rows.some(r => r.day != null), anyMonth = parsed.rows.some(r => r.month);
+      st.o.setCalendar = !Timeline.dayMode() && anyDay && !anyMonth; st.o.dayMode = Timeline.dayMode() || st.o.setCalendar; st.o.era = parsed.era || "";
+      st.o.place = parsed.map.place != null; st.o.pov = false; st.o.time = parsed.map.time != null; st.o.summary = false;
+      this.preview(st, m, prev);
+    };
+    pick.addEventListener("change", async () => { const f = pick.files[0]; if (!f) return; try { const p = await this.fromFile(f); if (!p.rows.length) { prev.replaceChildren(h("div", { class: "muted" }, "Não encontrei colunas de capítulo, ano ou dia nesse arquivo. Baixe o modelo para ver como organizar.")); return; } load(p); } catch (e) { UI.toast(`Não consegui ler ${f.name}: ${e?.message || e}`); } });
+    m.setBody(h("div", { style: { display: "flex", flexDirection: "column", gap: "12px" } },
+      h("div", { class: "row", style: { flexWrap: "wrap", gap: "8px" } },
+        h("button", { class: "btn primary", id: "di-pick", onclick: () => pick.click() }, icon("file", "sm"), "Escolher planilha ou CSV"), pick,
+        h("button", { class: "btn", onclick: () => this.download("template", "xlsx") }, icon("download", "sm"), "Modelo (xlsx)"),
+        h("button", { class: "btn ghost", onclick: () => this.download("current", "xlsx") }, icon("download", "sm"), "Exportar as datas atuais (xlsx)"),
+        h("button", { class: "btn ghost", onclick: () => this.download("current", "csv") }, "CSV")),
+      h("div", { class: "muted", style: { fontSize: "12.5px", lineHeight: 1.5 } }, "Colunas aceitas (qualquer ordem): ", h("b", null, "Nº"), " (posição do capítulo no manuscrito), ", h("b", null, "Título"), ", ", h("b", null, "Ano"), ", ", h("b", null, "Dia"), " (ou ", h("b", null, "Mês"), " + Dia), ", h("b", null, "Dia fim"), ", ", h("b", null, "Local"), ", POV, Tempo, Resumo. O casamento é pelo Nº e conferido pelo título; sem Nº, vale o título."),
+      ta, h("div", { class: "row" }, h("button", { class: "btn", onclick: () => { const p = this.fromRows(FichaImport.parseCSV(ta.value)); if (!p.rows.length) { prev.replaceChildren(h("div", { class: "muted" }, "Não encontrei colunas de capítulo, ano ou dia no texto colado.")); return; } load(p); } }, "Ler o texto")), prev));
+    m.setFoot([h("button", { class: "btn ghost", onclick: () => m.close() }, "Fechar")]);
+    return m;
+  },
+  preview(st, m, el) {
+    const L = st.list, o = st.o, p = st.parsed;
+    const chk = (label, key, hint, dis) => h("label", { class: "row", style: { gap: "6px", fontSize: "13px", alignItems: "flex-start" } }, h("input", { type: "checkbox", checked: !!o[key], disabled: !!dis, onchange: e => { o[key] = e.target.checked; if (key === "setCalendar") o.dayMode = Timeline.dayMode() || o.setCalendar; this.preview(st, m, el); } }), h("span", null, label, hint ? h("div", { class: "muted", style: { fontSize: "12px" } }, hint) : null));
+    for (const x of L) if (x.u) { x.ch = this.plan(x, o); }
+    const nOn = L.filter(x => x.on && x.u).length, nSem = L.filter(x => !x.u).length, nChk = L.filter(x => x.st === "conferir").length;
+    const placeMiss = [...new Set(L.filter(x => x.u && o.place && x.r.place && !x.place).map(x => x.r.place))];
+    const rows = L.slice(0, 500).map(x => h("tr", { style: x.u ? null : { opacity: .6 } },
+      h("td", null, h("input", { type: "checkbox", checked: !!x.on, disabled: !x.u, "aria-label": "Aplicar", onchange: e => { x.on = e.target.checked; this.preview(st, m, el); } })),
+      h("td", { class: "num muted" }, x.r.n ?? ""),
+      h("td", null, h("div", null, x.r.title || "—"), x.u && this.tkey(x.u.title) !== this.tkey(x.r.title || "") && x.r.title ? h("div", { class: "muted", style: { fontSize: "12px" } }, "→ " + x.u.title) : null),
+      h("td", { class: "num" }, x.r.year ?? ""), h("td", { class: "num" }, x.r.month ? x.r.month + " / " : "", x.r.day ?? "", x.r.end != null && x.r.end !== x.r.day ? "–" + x.r.end : ""),
+      h("td", { style: { fontSize: "12.5px" } }, x.r.place ? (o.place ? (x.place ? x.place : h("span", { style: { color: "var(--warn)" } }, x.r.place)) : x.r.place) : ""),
+      h("td", null, !x.u ? h("span", { class: "pill s-rascunho" }, "sem capítulo") : x.st === "conferir" ? h("span", { class: "pill s-revisao" }, "conferir") : x.ch && Object.keys(x.ch).length ? h("span", { class: "pill s-concluido" }, "atualiza") : h("span", { class: "muted", style: { fontSize: "12px" } }, "sem mudança"))));
+    el.replaceChildren(
+      h("div", { class: "wi-sum" }, h("b", null, `${L.length} linhas`), ` lidas${p.sheet ? ` da aba “${p.sheet}”` : ""} · ${nOn} serão aplicadas${nSem ? ` · ${nSem} sem capítulo correspondente` : ""}${nChk ? ` · ${nChk} para conferir (posição bate, título não)` : ""}`),
+      h("div", { class: "row", style: { gap: "18px", flexWrap: "wrap", margin: "8px 0", alignItems: "flex-start" } },
+        h("div", null, h("div", { class: "eyebrow" }, "Quando o capítulo já tem data"), UI.select([["replace", "Substituir pela planilha"], ["fill", "Completar: só campos vazios"]], o.mode, v => { o.mode = v; this.preview(st, m, el); }, { id: "di-mode", style: { width: "auto" } })),
+        !Timeline.dayMode() && p.map.day != null && p.map.month == null ? chk("Usar o calendário por dia do ano", "setCalendar", "A planilha tem só ano e dia (1 a 365); a linha do tempo passa a contar assim.") : null,
+        !S.P.timeline?.era && p.era ? h("label", { class: "row", style: { gap: "6px", fontSize: "13px" } }, "Sufixo do ano", h("input", { class: "input", value: o.era, style: { width: "70px" }, id: "di-era", oninput: e => { o.era = e.target.value.trim(); } })) : null,
+        p.map.place != null ? chk("Ligar o local às fichas de lugar", "place", placeMiss.length ? `${placeMiss.length} sem ficha (ficam de fora): ${placeMiss.slice(0, 5).join(", ")}${placeMiss.length > 5 ? "…" : ""}` : "Todos os locais têm ficha.") : null,
+        p.map.pov != null ? chk("Definir o POV", "pov", "Só onde o capítulo ainda não tem, ou conforme a opção ao lado.") : null,
+        p.map.time != null ? chk("Preencher “Tempo da história”", "time") : null,
+        p.map.summary != null ? chk("Preencher o resumo", "summary", "Fica desligado por padrão.") : null),
+      h("div", { class: "tablewrap", style: { maxHeight: "34vh", overflow: "auto" } }, h("table", { class: "gl-table" }, h("thead", null, h("tr", null, ["", "Nº", "Capítulo no arquivo", "Ano", "Dia", "Local", ""].map(t => h("th", null, t)))), h("tbody", null, rows))),
+      L.length > 500 ? h("div", { class: "muted", style: { fontSize: "12px" } }, `Mostrando as 500 primeiras de ${L.length}; todas entram na importação.`) : null);
+    m.setFoot([h("button", { class: "btn ghost", onclick: () => m.close() }, "Cancelar"), h("span", { class: "grow" }), h("button", { class: "btn primary", id: "di-go", disabled: !nOn, onclick: () => {
+      const r = this.commit(L, o); m.close();
+      UI.toast([`${r.nUp} capítulos com data`, r.nPlace && `${r.nPlace} locais ligados`, r.nSkip && `${r.nSkip} já estavam iguais`, r.placesMissing.length && `${r.placesMissing.length} locais sem ficha`].filter(Boolean).join(", ") + ".");
+      if (S.route?.tab === "timeline") Timeline.render($("#main")); else App.go({ view: "project", tab: "timeline" });
+    } }, icon("download", "sm"), `Aplicar a ${nOn} capítulos`)]);
+  },
+  /* ---------- exportação e modelo ---------- */
+  rowsOf(which) {
+    const dm = Timeline.dayMode(); const units = Data.scenesInOrder(); const era = S.P?.timeline?.era;
+    const head = ["Nº", "Título no manuscrito", "POV", era ? `Ano (${era})` : "Ano", ...(dm ? [] : ["Mês"]), dm ? "Dia início" : "Dia", "Dia fim", "Local", "Tempo da história", "Resumo"];
+    const rows = units.map((n, i) => {
+      const t = which === "template";
+      return [i + 1, n.title, S.codex.get(n.pov)?.name || "", t ? "" : n.year ?? "", ...(dm ? [] : [t ? "" : n.month ? calMonths()[n.month - 1] || n.month : ""]), t ? "" : n.day ?? "", t ? "" : n.dayEnd ?? "", t ? "" : S.codex.get(n.place)?.name || "", t ? "" : n.time || "", t ? "" : n.summary || ""];
+    });
+    return [head, ...rows];
+  },
+  csv(rows) { return "﻿" + rows.map(r => r.map(c => { const s = String(c ?? ""); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(";")).join("\r\n"); },
+  async xlsx(rows, sheet = "Datas dos capítulos") {
+    const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "");
+    const col = i => { let s = ""; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+    const sx = rows.map((r, ri) => `<row r="${ri + 1}">` + r.map((c, ci) => { const ref = col(ci) + (ri + 1); if (c === "" || c == null) return ""; return typeof c === "number" ? `<c r="${ref}"><v>${c}</v></c>` : `<c r="${ref}" t="inlineStr"${ri === 0 ? ' s="1"' : ""}><is><t xml:space="preserve">${esc(c)}</t></is></c>`; }).join("") + "</row>").join("");
+    const z = new JSZip();
+    z.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`);
+    z.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
+    z.file("xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${esc(sheet).slice(0, 31)}" sheetId="1" r:id="rId1"/></sheets></workbook>`);
+    z.file("xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+    z.file("xl/styles.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="2"><xf/><xf fontId="1" applyFont="1"/></cellXfs></styleSheet>`);
+    z.file("xl/worksheets/sheet1.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="7" customWidth="1"/><col min="2" max="2" width="30" customWidth="1"/><col min="3" max="10" width="16" customWidth="1"/></cols><sheetData>${sx}</sheetData></worksheet>`);
+    return z.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  },
+  async download(which, fmt = "xlsx") {
+    try {
+      const rows = this.rowsOf(which); const wt = Data.inCol() ? S.C.title : S.P.title; const base = `${SAFE_NAME(wt)} - ${which === "template" ? "Modelo de datas dos capítulos" : "Datas dos capítulos"}`;
+      if (fmt === "csv") saveFile(base + ".csv", new Blob([this.csv(rows)], { type: "text/csv;charset=utf-8" }));
+      else saveFile(base + ".xlsx", await this.xlsx(rows));
+    } catch (e) { UI.toast("Não foi possível gerar o arquivo: " + (e?.message || e)); }
   },
 };
 
@@ -9398,6 +9640,7 @@ const Travel = {
     return null;
   },
   elapsed(A, B) {
+    if (Timeline.dayMode()) { const Y = Timeline.yearDays(); if (A.d && B.d) return { exact: (B.y - A.y) * Y + (B.d - (A.e || A.d)) }; return { max: (B.y - A.y + 1) * Y }; }
     const M = calMonths().length, md = +(S.P?.timeline?.monthDays) || 30;
     if (A.m && B.m && A.d && B.d) return { exact: ((B.y - A.y) * M + (B.m - A.m)) * md + (B.d - A.d) };
     if (A.m && B.m) return { max: ((B.y - A.y) * M + (B.m - A.m) + 1) * md };
