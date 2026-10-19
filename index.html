@@ -1884,7 +1884,7 @@ function mdFromHtml(html) {
   // notas de fim: numeradas pela ordem em que aparecem no texto
   const fnNum = new Map(); for (const s of d.querySelectorAll("sup.fn")) if (!fnNum.has(s.dataset.fn)) fnNum.set(s.dataset.fn, fnNum.size + 1);
   const inl = el => [...el.childNodes].map(c => {
-    if (c.nodeType === 3) return c.textContent.replace(/([*_])/g, "\\$1");
+    if (c.nodeType === 3) return c.textContent.replace(/[ \t]*\n[ \t]*/g, " ").replace(/([*_])/g, "\\$1"); // quebra de linha dentro do texto HTML é só espaço
     if (c.nodeType !== 1) return "";
     if (c.tagName === "SUP" && c.classList.contains("fn")) return `[^${fnNum.get(c.dataset.fn) || c.dataset.fn}]`;
     const t = inl(c);
@@ -4949,6 +4949,44 @@ const TrNew = {
 /* ---------- editor espelhado ---------- */
 const TrEditor = {
   editOrig: false, engine: null,
+  /* a IA (ou o texto original, importado de e-book) às vezes devolve o parágrafo cortado em várias linhas; aqui as linhas soltas viram espaço.
+     Mantém: quebra forçada (dois espaços no fim), listas, citações e títulos. */
+  unwrap(md) {
+    return String(md || "").replace(/\r\n?/g, "\n").split(/\n{2,}/).map(b => /^\s*([-*+]\s|\d+[.)]\s|>|#|!\[|<p)/.test(b) ? b : b.replace(/([ \t]*)\n[ \t]*/g, (m, sp) => sp.length >= 2 ? m : " ")).join("\n\n");
+  },
+  /* conserta traduções já feitas: <br> no meio de um parágrafo (entre texto dos dois lados) vira espaço */
+  joinHtml(html) {
+    const d = h("div", { html: html || "" }); let count = 0;
+    for (const p of d.querySelectorAll("p,blockquote")) {
+      for (const br of [...p.querySelectorAll("br")]) {
+        const a = br.previousSibling, z = br.nextSibling; if (!a || !z) continue;
+        if (!(a.textContent || "").trim() || !(z.textContent || "").trim()) continue;
+        br.replaceWith(document.createTextNode(" ")); count++;
+      }
+      p.normalize();
+    }
+    return { html: d.innerHTML, count };
+  },
+  async joinLines(n, b, upd, all) {
+    if (!all) {
+      const r = this.joinHtml(b.el.innerHTML);
+      if (!r.count) { UI.toast("Não há linhas quebradas no meio de parágrafos nesta tradução."); return; }
+      if (!(await UI.confirm({ title: `Juntar ${r.count} ${r.count === 1 ? "linha quebrada" : "linhas quebradas"}?`, text: "Quebras de linha no meio de um parágrafo viram espaço. Versos e quebras que você fez de propósito também seriam juntados: confira depois.", ok: "Juntar" }))) return;
+      b.el.innerHTML = r.html; b.el.dispatchEvent(new Event("input", { bubbles: true })); b.save.flush(); upd?.(); UI.toast(`${r.count} ${r.count === 1 ? "linha juntada" : "linhas juntadas"}.`); return;
+    }
+    const lang = this.lang(); let total = 0, caps = 0; const todo = [];
+    for (const u of Data.textNodes()) { const raw = await Translate.readTr(u, lang); if (!raw) continue; const { meta, body } = fmParse(raw); const r = this.joinHtml(htmlFromMd(body)); if (r.count) todo.push([u, meta, r]); }
+    if (!todo.length) { UI.toast("Nenhuma tradução tem linhas quebradas no meio de parágrafos."); return; }
+    total = todo.reduce((a, x) => a + x[2].count, 0);
+    if (!(await UI.confirm({ title: `Juntar ${total} linhas em ${todo.length} ${todo.length === 1 ? "capítulo" : "capítulos"}?`, text: "Quebras de linha no meio de um parágrafo viram espaço, em todas as traduções do livro. Antes, cada tradução alterada é guardada em traducoes/" + lang + "/versoes/.", ok: "Juntar em todos" }))) return;
+    for (const [u, meta, r] of todo) {
+      const old = await Translate.readTr(u, lang);
+      Disk.write(Data.pathOf(`traducoes/${lang}/versoes/${u.id} ${stamp()}.md`), old);
+      Disk.write(Translate.file(u, lang), fmWrite(meta, mdFromHtml(sanitizeHtml(r.html)))); caps++;
+    }
+    UI.toast(`${total} linhas juntadas em ${caps} ${caps === 1 ? "capítulo" : "capítulos"}.`);
+    App.renderMain();
+  },
   lang() { return S.P.trLang || "en"; },
   langLabel(c) { return langName(c); },
   async load(n) { const raw = await Translate.readTr(n, this.lang()); if (!raw) return { html: "", meta: {} }; const { meta, body } = fmParse(raw); return { html: htmlFromMd(body), meta }; },
@@ -4998,6 +5036,7 @@ const TrEditor = {
       eng.length ? h("button", { class: "btn sm primary", onclick: e => this.engineMenu(e.currentTarget, k => this.translateAll(n, b, k, updProg)) }, icon("translate", "sm"), "Traduzir capítulo", icon("chevd", "sm")) : null,
       h("button", { class: "btn sm", onmousedown: e => e.preventDefault(), onclick: () => this.translatePara(n, b, orig, updProg), title: "Traduz o parágrafo do original que corresponde ao cursor" }, "Traduzir parágrafo"),
       h("button", { class: "btn sm", onmousedown: e => e.preventDefault(), onclick: () => this.review(n, b, orig), title: "Selecione um trecho da tradução" }, icon("sparkle", "sm"), "Revisar trecho"),
+      h("button", { class: "btn sm ghost", id: "tr-join", onmousedown: e => e.preventDefault(), onclick: e => UI.menu(e.currentTarget, [{ header: "Juntar linhas quebradas no meio de parágrafos" }, { label: "Neste capítulo", onClick: () => this.joinLines(n, b, updProg, false) }, { label: "Em todos os capítulos traduzidos", onClick: () => this.joinLines(n, b, updProg, true) }]), title: "Conserta traduções em que os parágrafos foram cortados em várias linhas" }, "Juntar linhas"),
       h("button", { class: "btn sm ghost" + (this.editOrig ? " on" : ""), onclick: () => { this.editOrig = !this.editOrig; Editor.render(main); }, title: "Permite corrigir o texto original" }, icon("pen", "sm"), this.editOrig ? "Original editável" : "Editar original"));
     const ms = h("div", { class: "tr-ms", style: Editor.typoVars() },
       h("div", { class: "tr-head" }, h("div", null, h("div", { class: "eyebrow" }, "Original · " + langName(S.P.lang)), h("h2", { class: "tr-otitle" }, n.title)), h("div", null, h("div", { class: "eyebrow row", style: { gap: "8px" } }, "Tradução · " + langName(lang), prog), ttl)),
@@ -5018,10 +5057,10 @@ const TrEditor = {
       let md;
       if (k === "ia") {
         const src = mdFromHtml(Endnotes.split(S.texts.get(n.id)?.html || "").body).trim(); if (!src) throw new Error("O capítulo original está vazio.");
-        md = await TrAI.call(`Traduza o texto literário abaixo do ${langName(S.P.lang)} para o ${langName(lang)}.\n${TrAI.rules(lang)}\nResponda só com a tradução, em Markdown (itálico com *asteriscos*, separador de cena * * *), mantendo a mesma divisão de parágrafos do original (um parágrafo traduzido para cada parágrafo original).\n\n${src}`, { signal: ctl.signal, onText: t => { ed.innerHTML = htmlFromMd(t); } });
+        md = await TrAI.call(`Traduza o texto literário abaixo do ${langName(S.P.lang)} para o ${langName(lang)}.\n${TrAI.rules(lang)}\nResponda só com a tradução, em Markdown (itálico com *asteriscos*, separador de cena * * *), mantendo a mesma divisão de parágrafos do original (um parágrafo traduzido para cada parágrafo original).\n\n${src}`, { signal: ctl.signal, onText: t => { ed.innerHTML = htmlFromMd(this.unwrap(t)); } });
       } else if (k === "google") md = (await GTr.translate(n, lang, { signal: ctl.signal, status: t => ed.innerHTML = `<p class="muted">${esc(t)}</p>` })).md;
       else md = (await FreeTr.translate(n, lang, { signal: ctl.signal, status: t => ed.innerHTML = `<p class="muted">${esc(t)}</p>`, step: (out, i, tot) => { ed.innerHTML = htmlFromMd(out.join("\n\n")) + `<p class="muted">${i}/${tot}…</p>`; } })).md;
-      ed.innerHTML = htmlFromMd(md); b.save(); b.save.flush(); upd(); UI.toast("Capítulo traduzido. Revise à vontade: o texto é seu.");
+      md = this.unwrap(md); ed.innerHTML = htmlFromMd(md); b.save(); b.save.flush(); upd(); UI.toast("Capítulo traduzido. Revise à vontade: o texto é seu.");
     } catch (e) { ed.innerHTML = ""; UI.toast(e?.code ? AI.errMsg(e) : String(e?.message || e)); }
   },
   idx(b) { const s = getSelection(); let p = s.rangeCount ? s.anchorNode : null; while (p && p.parentNode !== b.el) p = p.parentNode; return p ? [...b.el.children].indexOf(p) : (this.curIdx ?? -1); },
@@ -5033,7 +5072,7 @@ const TrEditor = {
       else if (GTr.key) out = (await GTr.call([src.innerHTML], S.P.lang.slice(0, 2), lang.slice(0, 2)))[0];
       else out = await FreeTr.mymemory(src.textContent, S.P.lang.slice(0, 2), lang.slice(0, 2));
     } catch (e) { UI.toast(e?.code ? AI.errMsg(e) : String(e?.message || e)); return; }
-    const html = /<\w/.test(out) ? `<p>${out}</p>` : htmlFromMd(out);
+    const html = /<\w/.test(out) ? `<p>${out}</p>` : htmlFromMd(this.unwrap(out));
     const tmp = h("div", { html: sanitizeHtml(html) }); const node = tmp.firstElementChild || h("p", null, out);
     const target = b.el.children[i < 0 ? 0 : i];
     if (target && !target.textContent.trim()) target.replaceWith(node); else if (target && i >= 0 && b.el.children.length > i) { const ok = await UI.confirm({ title: "Substituir o parágrafo da tradução?", text: textOf(target.innerHTML).slice(0, 200), ok: "Substituir", cancel: "Inserir depois" }); ok ? target.replaceWith(node) : target.after(node); }
