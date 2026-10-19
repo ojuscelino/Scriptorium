@@ -135,7 +135,8 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:1px 5px;border:1px solid va
 .iconbtn:hover{background:var(--hover);color:var(--ink)}
 .iconbtn.on{color:var(--gilt);background:var(--sel)}
 .iconbtn:disabled{opacity:.4;cursor:default}
-.hamb{display:none}
+.hamb{display:inline-grid}
+body.side-off .sidebar{display:none!important}
 
 .frame{flex:1;min-height:0;display:flex;position:relative}
 .sidebar{width:var(--side-w);flex:none;border-right:1px solid var(--line);background:var(--sunk);display:flex;flex-direction:column;min-height:0}
@@ -220,6 +221,15 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:1px 5px;border:1px solid va
 .tr-side{min-width:0}
 .tr-orig{color:var(--ink-2)}
 .tr-orig[contenteditable="false"]{caret-color:transparent}
+/* modo revisão: só aparência, nada vai para o texto salvo */
+:root{--rev-it:#c62828;--rev-ch:#2e7d32;--rev-pl:#1565c0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--rev-it:#ff6b6b;--rev-ch:#6fcf7a;--rev-pl:#6cb2ff}}
+:root[data-theme="dark"]{--rev-it:#ff6b6b;--rev-ch:#6fcf7a;--rev-pl:#6cb2ff}
+.rev-italic .ms-text em,.rev-italic .ms-text i,.rev-italic .ms-text [style*="italic"]{color:var(--rev-it)!important}
+::highlight(rev-char){color:var(--rev-ch);background-color:color-mix(in srgb,var(--rev-ch) 14%,transparent)}
+::highlight(rev-place){color:var(--rev-pl);background-color:color-mix(in srgb,var(--rev-pl) 14%,transparent)}
+.iconbtn.rev-btn.on{color:var(--rev-ch)}
+.tr-ali{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 14px;border-bottom:1px solid var(--line);background:var(--paper-2,transparent)}
 .tr-grid .ms-text>.pair-on{background:color-mix(in srgb,var(--gilt) 13%,transparent);border-radius:4px;box-shadow:0 0 0 4px color-mix(in srgb,var(--gilt) 13%,transparent)}
 .tr-tgt:empty::before,.tr-tgt.blank::before{content:attr(data-ph);color:var(--faint)}
 @media (max-width: 980px){.tr-head,.tr-grid{grid-template-columns:1fr;gap:18px}.tr-ms{padding:18px 16px 100px}}
@@ -496,6 +506,7 @@ body.dragging .tree-children{min-height:10px}
 .ed-bar .lbl{font-size:12.5px;color:var(--muted);padding-inline:6px}
 .ms{--ms-font:var(--f-text);--ms-size:19px;--ms-lh:1.7;--ms-width:680px;--ms-indent:1.5em;--ms-pgap:0em;--ms-align:left;
   max-width:calc(var(--ms-width) + 48px);margin:0 auto;padding:40px 24px 40vh}
+.ms.fluid{max-width:min(100%,1400px);padding-left:clamp(20px,5vw,96px);padding-right:clamp(20px,5vw,96px)}
 .ms-chapter-h{margin-bottom:36px;text-align:center}
 .ms-chapter-h .eyebrow{display:block;margin-bottom:10px}
 .ms-title{width:100%;border:0;background:none;outline:0;text-align:center;font-family:var(--f-display);font-size:clamp(26px,3.6vw,36px);line-height:1.15;padding:2px 0;color:var(--ink)}
@@ -2778,7 +2789,7 @@ const Index = {
     }
     return out;
   },
-  rebuild() { this.buildNames(); this.byNode = new Map(); for (const n of S.nodes.values()) if (Data.hasText(n)) this.byNode.set(n.id, this.scan(textOf(S.texts.get(n.id)?.html || ""))); },
+  rebuild() { this.buildNames(); RevMode?.soon?.(); this.byNode = new Map(); for (const n of S.nodes.values()) if (Data.hasText(n)) this.byNode.set(n.id, this.scan(textOf(S.texts.get(n.id)?.html || ""))); },
   rebuildSoon: debounce(() => Index.rebuild(), 600),
   update(nid) { const n = S.nodes.get(nid); if (n && Data.hasText(n)) this.byNode.set(nid, this.scan(textOf(S.texts.get(nid)?.html || ""))); },
   updateSoon: (() => { const t = new Map(); return nid => { clearTimeout(t.get(nid)); t.set(nid, setTimeout(() => Index.update(nid), 800)); }; })(),
@@ -2982,7 +2993,7 @@ const App = {
       if (S.route.tab === "write" && S.route.nid) for (const a of Data.ancestors(S.route.nid)) add(a.title || typeLabel(a.type, S.P.type), () => App.go({ view: "project", tab: "write", nid: a.id }));
       else if (S.route.tab !== "write") add(TABS.find(t => t[0] === S.route.tab)?.[1] || "", () => { });
     }
-    $("#hamb").hidden = S.route.view !== "project";
+    $("#hamb").hidden = S.route.view !== "project"; this.applySide();
   },
   renderMain() {
     const main = $("#main");
@@ -3013,6 +3024,15 @@ const App = {
     else if (t === "settings") r = ProjSettings.render(main);
     else if (t === "maps") r = Maps.render(main);
     return done(r);
+  },
+  /* ocultar/mostrar a barra Estrutura: no computador alterna e lembra; no celular abre como gaveta */
+  toggleSide(force) {
+    if (innerWidth <= 980) { document.body.classList.toggle("side-open"); return; }
+    S.settings.sideHidden = force != null ? !!force : !S.settings.sideHidden; Data.saveSettings(); this.applySide();
+  },
+  applySide() {
+    const off = !!S.settings?.sideHidden && innerWidth > 980; document.body.classList.toggle("side-off", off);
+    const b = $("#hamb"); if (b) { b.setAttribute("aria-label", off ? "Mostrar a estrutura" : "Ocultar a estrutura"); b.title = (off ? "Mostrar" : "Ocultar") + " a estrutura (Ctrl+\\)"; b.classList.toggle("on", !off && S.route.view === "project"); }
   },
   openNode(nid, tab = "write") { return App.go({ view: "project", tab, nid }); },
 };
@@ -3148,6 +3168,8 @@ const Commands = {
       L.push({ label: "Modo máquina de escrever", icon: "pen", run: () => Typewriter.toggle() });
       L.push({ label: "Tarefas", icon: "tasks", run: () => App.go({ view: "project", tab: "tasks" }) });
       L.push({ label: "Visualização de página (A4, A5, C5)", icon: "page", run: () => PageView.menu(document.querySelector(".pv-btn") || document.body) });
+      L.push({ label: S.settings.sideHidden ? "Mostrar a estrutura (barra esquerda)" : "Ocultar a estrutura (barra esquerda)", icon: "panel", key: "Ctrl+\\", run: () => App.toggleSide() });
+      L.push({ label: RevMode.on ? "Desligar modo revisão (cores)" : "Ligar modo revisão (cores)", icon: "eye", run: () => RevMode.toggle() });
       L.push({ label: "Localizar e substituir", icon: "search", key: "Ctrl+H", run: () => FindReplace.open() });
       L.push({ label: "Dicionário", icon: "book", run: () => Drawer.open("dict") });
       L.push({ label: "Destacar repetições no texto", icon: "eye", run: () => Echo.toggle() });
@@ -4422,7 +4444,7 @@ const Editor = {
     const textIds = [n.id, ...scenes.map(s => s.id)];
     await Promise.all(textIds.map(id => Data.loadText(id)));
     if (tok !== this.token) return;
-    const ms = h("div", { class: "ms" + (n.type === "capitulo" && S.P.typo?.dropcap !== false ? " dropcap" : ""), style: this.typoVars() });
+    const ms = h("div", { class: "ms" + (S.P.typo?.fluid !== false ? " fluid" : "") + (n.type === "capitulo" && S.P.typo?.dropcap !== false ? " dropcap" : ""), style: this.typoVars() });
     const anc = Data.ancestors(n.id);
     if (n.type === "capitulo") {
       const eyebrow = anc.slice(0, -1).map(a => a.title).join(" · ");
@@ -4481,6 +4503,7 @@ const Editor = {
         tb("undo", "Desfazer (Ctrl+Z)", exec("undo"), { class: "iconbtn hide-s" })] : null,
       textual ? h("span", { class: "div hide-s" }) : null,
       textual ? h("button", { class: "iconbtn hide-s", "aria-label": "Localizar e substituir", title: "Localizar e substituir (Ctrl+H)", onclick: () => FindReplace.open() }, icon("search")) : null,
+      textual ? RevMode.button() : null,
       textual ? h("button", { class: "iconbtn", "aria-label": "Ortografia e gramática", title: "Ortografia e gramática", onmousedown: e => e.preventDefault(), onclick: e => Spell.menu(e.currentTarget) }, icon("spell")) : null,
       textual ? h("button", { class: "iconbtn hide-s" + (Echo.on ? " on" : ""), "data-echo": "1", "aria-label": "Destacar repetições", title: "Destacar palavras repetidas de perto", onclick: () => Echo.toggle() }, icon("eye")) : null,
       h("span", { class: "grow" }),
@@ -4636,6 +4659,70 @@ const SceneCard = {
     return h("div", { class: "field" }, h("span", null, "Notas vinculadas"),
       L.length ? h("div", { style: { display: "flex", flexDirection: "column", gap: "6px" } }, L.map(x => h("div", { class: "ctx-item", style: { fontFamily: "var(--f-text)", whiteSpace: "pre-wrap" } }, x.text))) : h("span", { class: "muted", style: { textTransform: "none", letterSpacing: 0, fontSize: "13px" } }, "Nenhuma."),
       h("button", { class: "btn sm ghost", style: { alignSelf: "flex-start" }, onclick: () => App.go({ view: "project", tab: "notes", nid: S.route.nid, newNote: true, linkTo: n.id }) }, icon("plus", "sm"), "Nota para esta cena"));
+  },
+};
+
+/* ===== 60b-review.js ===== */
+/* =====================================================================
+   Modo revisão: só na tela, nada disso vai para o texto salvo nem para a exportação.
+   Itálico em vermelho, nomes de personagens em verde, nomes de lugares em azul.
+   Itálico: CSS em <em>/<i>. Nomes: "CSS Custom Highlight API" (pinta trechos sem mexer no HTML).
+   ===================================================================== */
+const RevMode = {
+  PLACE: new Set(["lugar", "fortaleza"]),
+  get on() { return !!S.settings?.reviewMode; },
+  get opts() { return Object.assign({ italic: true, chars: true, places: true }, S.settings?.reviewOpts || {}); },
+  supported: typeof CSS !== "undefined" && !!CSS.highlights && typeof Highlight !== "undefined",
+  toggle(v = !this.on) { S.settings.reviewMode = !!v; Data.saveSettings(); this.apply(); },
+  setOpt(k, v) { S.settings.reviewOpts = Object.assign({}, this.opts, { [k]: v }); Data.saveSettings(); this.apply(); },
+  apply() {
+    document.documentElement.classList.toggle("rev-on", this.on);
+    for (const k of ["italic", "chars", "places"]) document.documentElement.classList.toggle("rev-" + k, this.on && this.opts[k]);
+    document.querySelectorAll(".rev-btn").forEach(b => b.classList.toggle("on", this.on));
+    this.refresh();
+  },
+  clear() { if (this.supported) { CSS.highlights.delete("rev-char"); CSS.highlights.delete("rev-place"); } },
+  /* percorre os textos visíveis do editor e marca onde aparecem os nomes das fichas */
+  refresh() {
+    if (!this.supported) return;
+    if (!this.on || !S.P) { this.clear(); return; }
+    const o = this.opts; if (!o.chars && !o.places) { this.clear(); return; }
+    if (!Index.names || !Index.names.size) Index.buildNames();
+    const chars = [], places = [];
+    for (const el of document.querySelectorAll("#main .ms-text")) {
+      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let t;
+      while ((t = w.nextNode())) {
+        const text = t.data; if (text.length < 3) continue;
+        const re = new RegExp(WORD_RE.source, "gu"); const toks = []; let m;
+        while ((m = re.exec(text))) toks.push([m[0], m.index]);
+        const nt = toks.map(x => norm(x[0]));
+        for (let i = 0; i < nt.length; i++) {
+          const L = Index.names.get(nt[i]); if (!L) continue;
+          for (const c of L) {
+            if (c.cap && !/^\p{Lu}/u.test(toks[i][0])) continue;
+            let ok = true; for (let k = 1; k < c.toks.length; k++) if (nt[i + k] !== c.toks[k]) { ok = false; break; }
+            if (!ok) continue;
+            const kind = S.codex.get(c.eid)?.kind; const end = toks[i + c.toks.length - 1];
+            const dst = kind === "personagem" ? (o.chars ? chars : null) : this.PLACE.has(kind) ? (o.places ? places : null) : null;
+            if (dst) { const r = new Range(); r.setStart(t, toks[i][1]); r.setEnd(t, end[1] + end[0].length); dst.push(r); }
+            i += c.toks.length - 1; break;
+          }
+        }
+      }
+    }
+    CSS.highlights.set("rev-char", new Highlight(...chars)); CSS.highlights.set("rev-place", new Highlight(...places));
+  },
+  soon: debounce(() => RevMode.refresh(), 250),
+  menu(anchor) {
+    const chk = (k, l) => ({ label: (this.opts[k] ? "✓ " : "    ") + l, onClick: () => this.setOpt(k, !this.opts[k]) });
+    UI.menu(anchor, [{ header: "Modo revisão (só na tela)" }, { label: (this.on ? "✓ " : "    ") + "Colorir para revisar", onClick: () => this.toggle() }, { sep: true }, chk("italic", "Itálico em vermelho"), chk("chars", "Personagens em verde"), chk("places", "Lugares em azul"),
+      this.supported ? null : { header: "Seu navegador não pinta nomes; só o itálico funciona." }].filter(Boolean));
+  },
+  button() { return h("button", { class: "iconbtn rev-btn" + (this.on ? " on" : ""), "aria-label": "Modo revisão (cores)", title: "Modo revisão: itálico em vermelho, personagens em verde, lugares em azul (só na tela)", onmousedown: e => e.preventDefault(), onclick: e => this.menu(e.currentTarget) }, icon("eye")); },
+  init() {
+    this.apply();
+    const main = document.getElementById("main"); if (!main) return;
+    new MutationObserver(() => { if (this.on) this.soon(); }).observe(main, { childList: true, subtree: true, characterData: true });
   },
 };
 
@@ -4908,6 +4995,8 @@ const TrAI = {
     if (AI.direct()) return AI.call(prompt, { onText, signal });
     throw new Error("Para traduzir com IA, cole a chave gratuita do Gemini em Preferências › IA (ou configure o Claude).");
   },
+  /* No Brasil cada fala de diálogo abre parágrafo próprio, com travessão; o original em inglês costuma trazê-las entre aspas dentro do parágrafo */
+  dialogRule(lang) { return /^pt/i.test(lang) ? "DIÁLOGOS (norma brasileira): cada fala começa em um novo parágrafo iniciado por travessão (—), sem aspas; a narração que acompanha a fala fica na mesma linha, separada por travessão. Por isso a tradução pode ter mais parágrafos que o original, e isso é esperado. Fora dos diálogos, mantenha a divisão de parágrafos.\n" : ""; },
   rules(lang) {
     const gl = Translate.glossary().map(g => `- ${g.o} → ${g.t}`).join("\n");
     const names = [...S.codex.values()].filter(e => ["personagem", "lugar", "organizacao"].includes(e.kind) && !e.fields?.traducao).map(e => e.name).join(", ");
@@ -4943,6 +5032,52 @@ const TrNew = {
         if (f.importNow) Importer.open({ intoCurrent: true });
         else { const c = Data.addNode("capitulo", null, { title: "Capítulo 1" }); S.route.nid = c.id; App.render(); }
       } }, "Criar tradução")] });
+  },
+};
+
+/* ---------- correspondência entre original e tradução ----------
+   Em português o diálogo ganha um parágrafo por fala (travessão), então a tradução tem mais parágrafos que o original.
+   A correspondência é calculada pelo comprimento do texto e pode ser ajustada à mão: cada âncora diz
+   "o parágrafo N do original começa no parágrafo M da tradução". O fim de um trecho é o começo do próximo. */
+const TrAlign = {
+  anchors(n) { return (n?.trAlign || []).filter(a => Array.isArray(a) && a.length === 2).map(a => [a[0] | 0, a[1] | 0]); },
+  compute(oLens, tLens, anchors = []) {
+    const O = oLens.length, T = tLens.length;
+    const byO = new Map([[0, 0]]); for (const [oi, ti] of anchors) if (oi >= 0 && oi < O) byO.set(oi, Math.max(0, Math.min(T, ti)));
+    const pts = [...byO].sort((a, b) => a[0] - b[0]); let last = 0; for (const q of pts) { if (q[1] < last) q[1] = last; last = q[1]; }
+    pts.push([O, T]);
+    const o2t = new Array(O).fill(null), t2o = new Array(T).fill(0);
+    for (let k = 0; k < pts.length - 1; k++) {
+      const [o0, t0] = pts[k], [o1, t1] = pts[k + 1]; if (o1 <= o0) continue;
+      if (t1 <= t0) { for (let i = o0; i < o1; i++) o2t[i] = [t0, t0 - 1]; continue; }
+      const oc = [0]; for (let i = o0; i < o1; i++) oc.push(oc[oc.length - 1] + (oLens[i] || 0) + 1);
+      const tc = [0]; for (let j = t0; j < t1; j++) tc.push(tc[tc.length - 1] + (tLens[j] || 0) + 1);
+      const OT = oc[oc.length - 1], TT = tc[tc.length - 1]; const got = new Map();
+      for (let j = t0; j < t1; j++) {
+        const mid = (tc[j - t0] + tc[j - t0 + 1]) / 2 / TT; let i = o0;
+        for (let q = o0; q < o1; q++) if (mid >= oc[q - o0] / OT && mid < oc[q - o0 + 1] / OT + 1e-9) { i = q; break; }
+        const g = got.get(i); g ? g[1] = j : got.set(i, [j, j]); t2o[j] = i;
+      }
+      for (let i = o0; i < o1; i++) {
+        if (got.has(i)) { o2t[i] = got.get(i); continue; }
+        const mid = (oc[i - o0] + oc[i - o0 + 1]) / 2 / OT; let j = t0; for (let q = t0; q < t1; q++) if (mid * TT >= tc[q - t0] && mid * TT < tc[q - t0 + 1]) { j = q; break; }
+        o2t[i] = [j, j];
+      }
+    }
+    return { o2t, t2o };
+  },
+  lens(el) { return [...el.children].map(x => (x.textContent || "").length); },
+  of(n, orig, ed) { return this.compute(this.lens(orig), this.lens(ed), this.anchors(n)); },
+  set(n, oi, ti, O, T) { // grava a âncora mantendo a ordem
+    const a = this.anchors(n).filter(x => x[0] !== oi); a.push([oi, Math.max(0, Math.min(T, ti))]); a.sort((x, y) => x[0] - y[0]);
+    let lastT = 0; for (const q of a) { if (q[1] < lastT) q[1] = lastT; lastT = q[1]; }
+    n.trAlign = a; Data.saveNodeSoon(n);
+  },
+  clear(n) { delete n.trAlign; Data.saveNodeSoon(n); },
+  /* exportação lado a lado: usa a mesma correspondência */
+  pairs(A, B, anchors) { // A, B: listas de html de blocos
+    const len = x => x.replace(/<[^>]+>/g, "").length;
+    return this.compute(A.map(len), B.map(len), anchors);
   },
 };
 
@@ -5025,9 +5160,33 @@ const TrEditor = {
     ed.addEventListener("contextmenu", e => Spell.context(e));
     ed.addEventListener("focusin", () => { Editor.curNid = n.id; });
     ed.addEventListener("paste", e => { e.preventDefault(); const html = e.clipboardData.getData("text/html"), text = e.clipboardData.getData("text/plain"); if (html) document.execCommand("insertHTML", false, sanitizeHtml(html)); else if (text && /\n/.test(text)) document.execCommand("insertHTML", false, textToHtml(text)); else document.execCommand("insertText", false, text); });
-    // pares de parágrafos: clicar de um lado destaca o correspondente do outro
-    const pair = (from, to) => from.addEventListener("click", e => { let p = e.target; while (p && p.parentNode !== from) p = p.parentNode; if (!p) return; const i = [...from.children].indexOf(p); for (const x of [...orig.children, ...ed.children]) x.classList.remove("pair-on"); p.classList.add("pair-on"); const q = to.children[i]; if (q) { q.classList.add("pair-on"); const r = q.getBoundingClientRect(), r2 = p.getBoundingClientRect(); if (Math.abs(r.top - r2.top) > 60) { const sc = main; sc.scrollBy({ top: 0 }); } } this.curIdx = i; });
-    pair(ed, orig); pair(orig, ed);
+    // pares de parágrafos: clicar de um lado destaca o trecho correspondente do outro (cálculo + ajustes manuais, veja TrAlign)
+    const aliBar = h("div", { class: "tr-ali", id: "tr-ali", hidden: true });
+    const showPair = oi => {
+      const A = TrAlign.of(n, orig, ed), r = A.o2t[oi]; this.sel = { oi };
+      for (const x of [...orig.children, ...ed.children]) x.classList.remove("pair-on");
+      orig.children[oi]?.classList.add("pair-on");
+      const has = r && r[1] >= r[0]; if (has) for (let j = r[0]; j <= r[1]; j++) ed.children[j]?.classList.add("pair-on");
+      const O = orig.children.length, T = ed.children.length; const manual = TrAlign.anchors(n).length;
+      const nudge = (kind, d) => {
+        const rr = TrAlign.of(n, orig, ed).o2t[oi]; let a = rr ? rr[0] : 0, z = rr ? rr[1] : -1;
+        const last = oi + 1 >= O; // o fim do último parágrafo é o fim da tradução
+        if (kind === "fim" && last) { UI.toast("Este é o último parágrafo do original: o fim é o fim da tradução."); return; }
+        if (kind === "ini") { if (!last) TrAlign.set(n, oi + 1, z + 1, O, T); TrAlign.set(n, oi, a + d, O, T); } // o outro lado fica onde está
+        else { TrAlign.set(n, oi, a, O, T); TrAlign.set(n, oi + 1, z + 1 + d, O, T); }
+        showPair(oi);
+      };
+      const btn = (l, t, f) => h("button", { class: "btn sm ghost", title: t, onmousedown: e => e.preventDefault(), onclick: f }, l);
+      aliBar.hidden = false;
+      aliBar.replaceChildren(h("span", { class: "muted", style: { fontSize: "12.5px" } }, `Original ¶${oi + 1} ↔ ${has ? (r[0] === r[1] ? `tradução ¶${r[0] + 1}` : `tradução ¶${r[0] + 1}–${r[1] + 1}`) : "sem trecho na tradução"}`),
+        h("span", { class: "grow" }),
+        h("span", { class: "muted", style: { fontSize: "12.5px" } }, "Início"), btn("▲ antes", "O trecho passa a começar um parágrafo antes", () => nudge("ini", -1)), btn("▼ depois", "O trecho passa a começar um parágrafo depois", () => nudge("ini", 1)),
+        h("span", { class: "muted", style: { fontSize: "12.5px", marginLeft: "8px" } }, "Fim"), btn("▲ antes", "O trecho passa a terminar um parágrafo antes", () => nudge("fim", -1)), btn("▼ depois", "O trecho passa a terminar um parágrafo depois", () => nudge("fim", 1)),
+        manual ? btn(`Refazer automático (${manual} ajuste${manual === 1 ? "" : "s"})`, "Apaga os ajustes manuais deste capítulo", () => { TrAlign.clear(n); showPair(oi); }) : null);
+    };
+    const clickOf = (from, isEd) => from.addEventListener("click", e => { let p = e.target; while (p && p.parentNode !== from) p = p.parentNode; if (!p) return; const i = [...from.children].indexOf(p); if (i < 0) return; showPair(isEd ? (TrAlign.of(n, orig, ed).t2o[i] ?? 0) : i); });
+    clickOf(orig, false); clickOf(ed, true);
+    b.showPair = showPair;
     Editor.blocks.set(n.id, b);
     const eng = this.engines();
     const actions = h("div", { class: "tr-actions" },
@@ -5042,7 +5201,7 @@ const TrEditor = {
       h("div", { class: "tr-head" }, h("div", null, h("div", { class: "eyebrow" }, "Original · " + langName(S.P.lang)), h("h2", { class: "tr-otitle" }, n.title)), h("div", null, h("div", { class: "eyebrow row", style: { gap: "8px" } }, "Tradução · " + langName(lang), prog), ttl)),
       scenes.length ? h("div", { class: "ai-off" }, "Este capítulo tem cenas separadas. ", h("button", { class: "btn sm", onclick: () => Scenes.merge(n.id) }, "Unir cenas no texto do capítulo"), " para traduzir lado a lado.") : null,
       h("div", { class: "tr-grid" }, h("div", { class: "tr-side" }, orig, op.notes.size ? h("div", { class: "fn-box" }, h("div", { class: "fn-h" }, "Notas do original"), [...op.notes].map(([id, t], i) => h("div", { class: "fn-row" }, h("span", { class: "fn-n" }, (i + 1) + "."), h("div", { class: "fn-t", html: t })))) : null), h("div", { class: "tr-side" }, ed, fnBox)));
-    main.replaceChildren(Editor.toolbar(n), actions, ms);
+    main.replaceChildren(Editor.toolbar(n), actions, aliBar, ms);
     Endnotes.list(b); updProg(); Status.render();
     if (Spell.active()) Spell.paint();
   },
@@ -5057,27 +5216,36 @@ const TrEditor = {
       let md;
       if (k === "ia") {
         const src = mdFromHtml(Endnotes.split(S.texts.get(n.id)?.html || "").body).trim(); if (!src) throw new Error("O capítulo original está vazio.");
-        md = await TrAI.call(`Traduza o texto literário abaixo do ${langName(S.P.lang)} para o ${langName(lang)}.\n${TrAI.rules(lang)}\nResponda só com a tradução, em Markdown (itálico com *asteriscos*, separador de cena * * *), mantendo a mesma divisão de parágrafos do original (um parágrafo traduzido para cada parágrafo original).\n\n${src}`, { signal: ctl.signal, onText: t => { ed.innerHTML = htmlFromMd(this.unwrap(t)); } });
+        md = await TrAI.call(`Traduza o texto literário abaixo do ${langName(S.P.lang)} para o ${langName(lang)}.\n${TrAI.rules(lang)}\nResponda só com a tradução, em Markdown (itálico com *asteriscos*, separador de cena * * *), ${/^pt/i.test(lang) ? "" : "mantendo a mesma divisão de parágrafos do original (um parágrafo traduzido para cada parágrafo original)."}\n${TrAI.dialogRule(lang)}\n${src}`, { signal: ctl.signal, onText: t => { ed.innerHTML = htmlFromMd(this.unwrap(t)); } });
       } else if (k === "google") md = (await GTr.translate(n, lang, { signal: ctl.signal, status: t => ed.innerHTML = `<p class="muted">${esc(t)}</p>` })).md;
       else md = (await FreeTr.translate(n, lang, { signal: ctl.signal, status: t => ed.innerHTML = `<p class="muted">${esc(t)}</p>`, step: (out, i, tot) => { ed.innerHTML = htmlFromMd(out.join("\n\n")) + `<p class="muted">${i}/${tot}…</p>`; } })).md;
-      md = this.unwrap(md); ed.innerHTML = htmlFromMd(md); b.save(); b.save.flush(); upd(); UI.toast("Capítulo traduzido. Revise à vontade: o texto é seu.");
+      md = this.unwrap(md); delete n.trAlign; ed.innerHTML = htmlFromMd(md); b.save(); b.save.flush(); upd(); UI.toast("Capítulo traduzido. Revise à vontade: o texto é seu.");
     } catch (e) { ed.innerHTML = ""; UI.toast(e?.code ? AI.errMsg(e) : String(e?.message || e)); }
   },
   idx(b) { const s = getSelection(); let p = s.rangeCount ? s.anchorNode : null; while (p && p.parentNode !== b.el) p = p.parentNode; return p ? [...b.el.children].indexOf(p) : (this.curIdx ?? -1); },
   async translatePara(n, b, orig) {
-    const i = this.idx(b); const src = orig.children[i < 0 ? 0 : i]; if (!src || !src.textContent.trim()) { UI.toast("Clique no parágrafo da tradução (ou do original) que quer traduzir."); return; }
+    const ed = b.el; const A = TrAlign.of(n, orig, ed);
+    let oi = this.sel?.oi; { const s = getSelection(); let p = s.rangeCount ? s.anchorNode : null; while (p && p.parentNode !== ed) p = p.parentNode; if (p && ed.contains(p)) oi = A.t2o[[...ed.children].indexOf(p)] ?? oi; }
+    const src = orig.children[oi ?? -1]; if (!src || !src.textContent.trim()) { UI.toast("Clique no parágrafo da tradução (ou do original) que quer traduzir."); return; }
     const lang = this.lang(); let out;
     try {
-      if (TrAI.label()) out = await TrAI.call(`Traduza este parágrafo literário do ${langName(S.P.lang)} para o ${langName(lang)}.\n${TrAI.rules(lang)}\nResponda só com a tradução, em Markdown, sem comentários.\n\n${mdFromHtml(src.outerHTML)}`);
+      if (TrAI.label()) out = await TrAI.call(`Traduza este parágrafo literário do ${langName(S.P.lang)} para o ${langName(lang)}.\n${TrAI.rules(lang)}\n${TrAI.dialogRule(lang)}Responda só com a tradução, em Markdown, sem comentários.\n\n${mdFromHtml(src.outerHTML)}`);
       else if (GTr.key) out = (await GTr.call([src.innerHTML], S.P.lang.slice(0, 2), lang.slice(0, 2)))[0];
       else out = await FreeTr.mymemory(src.textContent, S.P.lang.slice(0, 2), lang.slice(0, 2));
     } catch (e) { UI.toast(e?.code ? AI.errMsg(e) : String(e?.message || e)); return; }
     const html = /<\w/.test(out) ? `<p>${out}</p>` : htmlFromMd(this.unwrap(out));
-    const tmp = h("div", { html: sanitizeHtml(html) }); const node = tmp.firstElementChild || h("p", null, out);
-    const target = b.el.children[i < 0 ? 0 : i];
-    if (target && !target.textContent.trim()) target.replaceWith(node); else if (target && i >= 0 && b.el.children.length > i) { const ok = await UI.confirm({ title: "Substituir o parágrafo da tradução?", text: textOf(target.innerHTML).slice(0, 200), ok: "Substituir", cancel: "Inserir depois" }); ok ? target.replaceWith(node) : target.after(node); }
-    else b.el.append(node);
-    b.el.dispatchEvent(new Event("input", { bubbles: true }));
+    const tmp = h("div", { html: sanitizeHtml(html) }); const nodes = [...tmp.children]; if (!nodes.length) nodes.push(h("p", null, out));
+    const r = A.o2t[oi]; const has = r && r[1] >= r[0]; const kids = [...ed.children];
+    if (has && kids.slice(r[0], r[1] + 1).some(x => x.textContent.trim())) {
+      const old = kids.slice(r[0], r[1] + 1);
+      const ok = await UI.confirm({ title: old.length > 1 ? `Substituir os ${old.length} parágrafos da tradução?` : "Substituir o parágrafo da tradução?", text: old.map(x => x.textContent).join(" ").slice(0, 220), ok: "Substituir", cancel: "Inserir depois" });
+      if (ok) { old[0].replaceWith(...nodes); old.slice(1).forEach(x => x.remove()); } else old[old.length - 1].after(...nodes);
+    } else if (has) { const t = kids[r[0]]; t.replaceWith(...nodes); }
+    else if (kids[r ? r[0] - 1 : kids.length - 1]) kids[r ? r[0] - 1 : kids.length - 1].after(...nodes); else ed.append(...nodes);
+    // os parágrafos seguintes do original continuam apontando para o mesmo lugar da tradução
+    const delta = ed.children.length - kids.length;
+    if (delta && n.trAlign?.length) { n.trAlign = n.trAlign.map(([o, t]) => [o, o > oi ? t + delta : t]); Data.saveNodeSoon(n); }
+    ed.dispatchEvent(new Event("input", { bubbles: true })); b.showPair?.(oi);
   },
   async review(n, b, orig) {
     const s = getSelection(); if (!s.rangeCount || s.isCollapsed || !b.el.contains(s.anchorNode)) { UI.toast("Selecione um trecho da tradução para revisar."); return; }
@@ -5085,7 +5253,7 @@ const TrEditor = {
     const range = s.getRangeAt(0).cloneRange(); const sel = s.toString();
     const top = x => { while (x && x.parentNode !== b.el) x = x.parentNode; return x; };
     const a = [...b.el.children].indexOf(top(range.startContainer)), z = [...b.el.children].indexOf(top(range.endContainer));
-    const src = [...orig.children].slice(Math.max(0, a - 1), (z < 0 ? a : z) + 2).map(x => x.textContent).join("\n\n");
+    const M = TrAlign.of(n, orig, b.el).t2o, oa = M[Math.max(0, a)] ?? 0, oz = M[z < 0 ? Math.max(0, a) : z] ?? oa; const src = [...orig.children].slice(Math.max(0, oa - 1), oz + 2).map(x => x.textContent).join("\n\n");
     const box = h("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } }, h("p", { class: "muted" }, "Revisando…"));
     const m = UI.modal({ title: "Revisão da tradução", size: "wide", body: box });
     try {
@@ -5108,12 +5276,18 @@ const BiExport = {
     return map;
   },
   blocks(html) { const d = h("div", { html: Endnotes.split(html || "").body }); d.querySelectorAll("sup.fn").forEach(x => x.remove()); return [...d.children].map(x => x.outerHTML); },
-  table(orig, tr) {
-    const A = this.blocks(orig), B = this.blocks(tr); const n = Math.max(A.length, B.length);
-    let rows = ""; for (let i = 0; i < n; i++) rows += `<tr><td class="bo">${A[i] || ""}</td><td class="bt">${B[i] || ""}</td></tr>`;
+  table(orig, tr, anchors) {
+    const A = this.blocks(orig), B = this.blocks(tr); const M = TrAlign.pairs(A, B, anchors || []).o2t;
+    let rows = ""; for (let i = 0; i < A.length; i++) { const r = M[i]; rows += `<tr><td class="bo">${A[i]}</td><td class="bt">${r && r[1] >= r[0] ? B.slice(r[0], r[1] + 1).join("") : ""}</td></tr>`; }
+    if (!A.length && B.length) rows = `<tr><td class="bo"></td><td class="bt">${B.join("")}</td></tr>`;
     return `<table class="bi"><colgroup><col/><col/></colgroup><tbody>${rows}</tbody></table>`;
   },
-  interleave(orig, tr) { const A = this.blocks(orig), B = this.blocks(tr); const n = Math.max(A.length, B.length); let out = ""; for (let i = 0; i < n; i++) out += (A[i] || "") + (B[i] ? B[i].replace(/^<p/, '<p class="j"') : ""); return out; },
+  interleave(orig, tr, anchors) {
+    const A = this.blocks(orig), B = this.blocks(tr); const M = TrAlign.pairs(A, B, anchors || []).o2t; let out = "";
+    for (let i = 0; i < A.length; i++) { out += A[i]; const r = M[i]; if (r && r[1] >= r[0]) out += B.slice(r[0], r[1] + 1).map(x => x.replace(/^<p/, '<p class="j"')).join(""); }
+    if (!A.length) out = B.map(x => x.replace(/^<p/, '<p class="j"')).join("");
+    return out;
+  },
   css: "table.bi{width:100%;border-collapse:collapse;table-layout:fixed}table.bi td{vertical-align:top;padding:0 .9em .5em;width:50%}table.bi td.bo{border-right:1px solid #ccc;color:#333}table.bi td.bt{}table.bi p{text-indent:0;margin:0 0 .4em}",
 };
 
@@ -8775,7 +8949,7 @@ const ProjSettings = {
       sec.replaceChildren(h("h2", null, "Aparência do manuscrito"), h("p", null, "Vale só para o texto desta obra; a interface do Scriptorium não muda."),
         UI.field("Predefinição", UI.seg([["livro", "Livro"], ["manuscrito", "Manuscrito"], ["conforto", "Conforto"], ["compacto", "Compacto"]], t.preset, v => { Object.assign(t, TYPO_PRESETS[v], { preset: v }); Data.saveProjectSoon(); draw(); })),
         h("div", { class: "field" }, h("span", null, "Fonte do manuscrito"), h("div", { class: "fontlist" }, FONTS.map(f => { ensureFont(f.id); return h("button", { class: "fontopt" + (t.font === f.id ? " on" : ""), onclick: () => { t.font = f.id; save(); } }, h("div", { class: "fn" }, `${f.name} · ${f.cat}`), h("div", { class: "fp", style: { fontFamily: f.fam } }, "Era uma vez, numa terra distante…")); }))),
-        range("size", "Tamanho", 14, 26, 1, "px"), range("lh", "Entrelinha", 1.2, 2.4, .05, ""), range("width", "Largura da coluna", 480, 920, 10, "px"), range("indent", "Recuo da 1ª linha", 0, 3, .1, "em"), range("pgap", "Espaço entre parágrafos", 0, 1.5, .1, "em"),
+        range("size", "Tamanho", 14, 26, 1, "px"), range("lh", "Entrelinha", 1.2, 2.4, .05, ""), h("label", { class: "row", style: { gap: "8px", fontSize: "14px" } }, h("input", { type: "checkbox", id: "ty-fluid", checked: t.fluid !== false, onchange: e => { t.fluid = e.target.checked; Data.saveProjectSoon(); draw(); } }), "Ajustar o texto à largura da tela (com margem padrão nas laterais). Desmarque para usar uma coluna de largura fixa."), range("width", "Largura da coluna fixa", 480, 920, 10, "px"), range("indent", "Recuo da 1ª linha", 0, 3, .1, "em"), range("pgap", "Espaço entre parágrafos", 0, 1.5, .1, "em"),
         UI.field("Alinhamento", UI.seg([["left", "À esquerda"], ["justify", "Justificado"]], t.align, v => { t.align = v; save(); })),
         h("label", { class: "row", style: { gap: "8px", fontSize: "14px" } }, h("input", { type: "checkbox", id: "ty-dropcap", checked: t.dropcap !== false, onchange: e => { t.dropcap = e.target.checked; Data.saveProjectSoon(); draw(); } }), "Letra capitular (a primeira letra do capítulo grande, ocupando três linhas). Vale no editor, na visualização de página e nas exportações em PDF, HTML e EPUB."),
         h("div", { class: "field" }, h("span", null, "Prévia"), prev));
@@ -11290,7 +11464,7 @@ const Exporter = {
     const ver = this.hasTr() ? (this.opts.version || "bilingue") : "original";
     if (ver !== "original") {
       const map = await BiExport.preload(U); const inter = this.opts.fmt === "md" || this.opts.fmt === "txt";
-      U = U.map(u => { if (u.kind !== "capitulo") return u; const n = S.nodes.get(u.nid); const tr = map.get(u.nid) || ""; if (ver === "traducao") return Object.assign({}, u, { html: tr, title: n?.trTitle || u.title }); return Object.assign({}, u, { html: inter ? BiExport.interleave(u.html, tr) : BiExport.table(u.html, tr), title: n?.trTitle && n.trTitle !== u.title ? `${u.title} / ${n.trTitle}` : u.title, bi: true }); });
+      U = U.map(u => { if (u.kind !== "capitulo") return u; const n = S.nodes.get(u.nid); const tr = map.get(u.nid) || ""; if (ver === "traducao") return Object.assign({}, u, { html: tr, title: n?.trTitle || u.title }); return Object.assign({}, u, { html: inter ? BiExport.interleave(u.html, tr, TrAlign.anchors(n)) : BiExport.table(u.html, tr, TrAlign.anchors(n)), title: n?.trTitle && n.trTitle !== u.title ? `${u.title} / ${n.trTitle}` : u.title, bi: true }); });
     }
     if (this.opts.gloss && !this.opts.scope) { const g = BibleExport.glossaryHtml(); if (g) U = U.concat([{ kind: "capitulo", title: "Glossário", html: g }]); }
     let blob, ext = this.opts.fmt;
@@ -12557,7 +12731,7 @@ const Boot = {
   async start() {
     Theme.set(Theme.get());
     try { S.libView = localStorage.getItem("scr:libview") || "estante"; } catch { }
-    $("#hamb").append(icon("menu")); $("#hamb").addEventListener("click", () => document.body.classList.toggle("side-open"));
+    $("#hamb").append(icon("menu")); $("#hamb").addEventListener("click", () => App.toggleSide());
     $("#scrim").addEventListener("click", () => { document.body.classList.remove("side-open"); if (innerWidth <= 980 && S.drawer) Drawer.close(); });
     $("#brand").addEventListener("click", () => S.settings && App.go({ view: "library" }));
     $("#searchBtn").append(icon("search", "sm"), h("span", null, "Buscar"), h("kbd", null, "Ctrl K")); $("#searchBtn").addEventListener("click", () => S.settings && Palette.open());
@@ -12565,7 +12739,7 @@ const Boot = {
     $("#prefsBtn").append(icon("sliders")); $("#prefsBtn").addEventListener("click", () => S.settings && Prefs.open());
     $("#focusExit").addEventListener("click", () => Focus.toggle(false));
     Disk.onChange(Status.quick);
-    Review.trackSelection(); Dict.bind(); SelBar.init(); Typewriter.init();
+    Review.trackSelection(); RevMode.init(); addEventListener("resize", debounce(() => App.applySide(), 150)); Dict.bind(); SelBar.init(); Typewriter.init();
     document.addEventListener("selectionchange", debounce(() => { if (S.drawer === "dict") { const w = Dict.word; Dict.grab(); if (Dict.word !== w) { const i = $("#dict-w"); if (i) i.value = Dict.word; } } }, 300));
     this.keys(); this.activity();
     window.addEventListener("beforeunload", e => { Editor.flushAll(); Data.flushAll(); if (Disk.busy()) { e.preventDefault(); e.returnValue = ""; } });
@@ -12685,6 +12859,7 @@ const Boot = {
       if (e.key === "Escape" && S.focus && !$(".modal-wrap") && !$(".palette-wrap")) { Focus.toggle(false); return; }
       if (S.route.view !== "project") return;
       if (mod && e.shiftKey && k === "f") { e.preventDefault(); Focus.toggle(); return; }
+      if (mod && e.key === "\\" && S.route.view === "project") { e.preventDefault(); App.toggleSide(); return; }
       if (mod && !e.shiftKey && k === "h") { e.preventDefault(); FindReplace.open(); return; }
       if (mod && e.shiftKey && k === "r" && AI.enabled()) { e.preventDefault(); Drawer.open("review"); return; }
       if (mod && e.altKey) {
