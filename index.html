@@ -229,7 +229,8 @@ body.side-off .sidebar{display:none!important}
 ::highlight(rev-char){color:var(--rev-ch);background-color:color-mix(in srgb,var(--rev-ch) 14%,transparent)}
 ::highlight(rev-place){color:var(--rev-pl);background-color:color-mix(in srgb,var(--rev-pl) 14%,transparent)}
 .iconbtn.rev-btn.on{color:var(--rev-ch)}
-.tr-ali{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 14px;border-bottom:1px solid var(--line);background:var(--paper-2,transparent)}
+.tr-ali{position:sticky;bottom:14px;z-index:30;display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:max-content;max-width:calc(100% - 32px);margin:0 auto 14px;padding:7px 12px;border:1px solid var(--line);border-radius:999px;background:var(--paper);box-shadow:var(--shadow-2)}
+.tr-ali[hidden]{display:none}
 .tr-grid .ms-text>.pair-on{background:color-mix(in srgb,var(--gilt) 13%,transparent);border-radius:4px;box-shadow:0 0 0 4px color-mix(in srgb,var(--gilt) 13%,transparent)}
 .tr-tgt:empty::before,.tr-tgt.blank::before{content:attr(data-ph);color:var(--faint)}
 @media (max-width: 980px){.tr-head,.tr-grid{grid-template-columns:1fr;gap:18px}.tr-ms{padding:18px 16px 100px}}
@@ -5201,7 +5202,7 @@ const TrEditor = {
       h("div", { class: "tr-head" }, h("div", null, h("div", { class: "eyebrow" }, "Original · " + langName(S.P.lang)), h("h2", { class: "tr-otitle" }, n.title)), h("div", null, h("div", { class: "eyebrow row", style: { gap: "8px" } }, "Tradução · " + langName(lang), prog), ttl)),
       scenes.length ? h("div", { class: "ai-off" }, "Este capítulo tem cenas separadas. ", h("button", { class: "btn sm", onclick: () => Scenes.merge(n.id) }, "Unir cenas no texto do capítulo"), " para traduzir lado a lado.") : null,
       h("div", { class: "tr-grid" }, h("div", { class: "tr-side" }, orig, op.notes.size ? h("div", { class: "fn-box" }, h("div", { class: "fn-h" }, "Notas do original"), [...op.notes].map(([id, t], i) => h("div", { class: "fn-row" }, h("span", { class: "fn-n" }, (i + 1) + "."), h("div", { class: "fn-t", html: t })))) : null), h("div", { class: "tr-side" }, ed, fnBox)));
-    main.replaceChildren(Editor.toolbar(n), actions, aliBar, ms);
+    main.replaceChildren(Editor.toolbar(n), actions, ms, aliBar);
     Endnotes.list(b); updProg(); Status.render();
     if (Spell.active()) Spell.paint();
   },
